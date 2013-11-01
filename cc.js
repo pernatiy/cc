@@ -78,7 +78,7 @@ Controller.prototype = {
     },
 
     guard: function () {
-        var total = Game.BuildingsOwned + Game.UpgradesOwned;
+        var total = Game.cookieClicks + Game.BuildingsOwned + Game.UpgradesOwned;
         if (total != this.total || !this.actions.autobuy.id) {
             this.total = total;
             this.unqueue_action('buy');
@@ -90,10 +90,10 @@ Controller.prototype = {
             return;
 
         var info = this.calc.find_best();
-        info = { obj: info[0], price: info[1], acc: info[2] };
+        info = { obj: info[0], price: info[1] };
 
         var wait = 0.1 + (info.price - Game.cookies) / Game.cookiesPs;
-        var msg = (wait < 0 ? 'Choosing' : 'Waiting (' + Beautify(wait, 1) + 's) for') + ' "' + info.obj.name + '" (acc: ' + Beautify(info.acc, 3) + ' cps^2)';
+        var msg = (wait < 0 ? 'Choosing' : 'Waiting (' + Beautify(wait, 1) + 's) for') + ' "' + info.obj.name + '"';
 
         this.say(msg);
         if (info.price < Game.cookies) {
