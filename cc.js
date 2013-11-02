@@ -98,12 +98,11 @@ Controller.prototype = {
         var msg = (wait < 0 ? 'Choosing' : 'Waiting (' + Beautify(wait, 1) + 's) for') + ' "' + info.obj.name + '"';
 
         this.say(msg);
-        if (info.price < Game.cookies) {
+        if (info.price > Game.cookies) {
+            this.queue_action("buy", 1000 * (Game.cookiesPs ? wait : 3), function () { info.obj.buy(); this.total++; }.bind(this));
+        } else {
             info.obj.buy();
             this.total++;
-        } else {
-            if (Game.cookiesPs)
-                this.queue_action("buy", 1000 * wait, function () { info.obj.buy(); this.total++; }.bind(this));
         }
     },
 
