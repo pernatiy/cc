@@ -79,7 +79,7 @@ Controller.prototype = {
     },
 
     guard: function () {
-        var total = 1000 * Game.frenzy + Game.cookieClicks + Game.BuildingsOwned + Game.UpgradesOwned;
+        var total = 1000 * (Game.frenzy > 0) + Game.cookieClicks + Game.BuildingsOwned + Game.UpgradesOwned;
         if (total != this.total || !this.actions.autobuy.id) {
             this.total = total;
             this.unqueue_action('buy');
