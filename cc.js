@@ -93,7 +93,7 @@ Controller.prototype = {
         var info = this.calc.find_best();
         info = { obj: info[0], price: info[1] };
 
-        var protect = Game.Has('Get lucky') ? (Game.frenzy ? 1 : 7) * Game.cookiesPs * 1200 : 0;
+        var protect = Game.Has('Get lucky') ? (Game.frenzy ? 1 : 7) * Game.cookiesPs * 12000 : 0;
         var wait = 0.1 + (protect + info.price - Game.cookies) / Game.cookiesPs;
         var msg = (wait < 0 ? 'Choosing' : 'Waiting (' + Beautify(wait, 1) + 's) for') + ' "' + info.obj.name + '"';
 
