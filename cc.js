@@ -57,6 +57,7 @@ function Controller () {
 
         guard:   { delay: 1000, func: this.guard.bind(this) },
         autobuy: { delay:  250, func: this.autobuy.bind(this) },
+        oneshot: { delay:    0, func: this.autobuy.bind(this) },
         status:  { delay:    0, func: this.status.bind(this) },
 
         main:    { delay:   50, func: Game.ClickCookie },
@@ -79,7 +80,7 @@ Controller.prototype = {
     },
 
     guard: function () {
-        var total = 1000 * (Game.frenzy > 0) + Game.cookieClicks + Game.BuildingsOwned + Game.UpgradesOwned;
+        var total = 1000 * (Game.frenzy > 0) + Math.floor(Game.cookieClicks/10) + Game.BuildingsOwned + Game.UpgradesOwned;
         if (total != this.total || !this.actions.autobuy.id) {
             this.total = total;
             this.unqueue_action('buy');
@@ -87,22 +88,26 @@ Controller.prototype = {
     },
 
     autobuy: function () {
-        if (this.actions.timeouts.buy)
+        if (this.actions.timeouts.buy || Game.clickFrenzy > 0)
             return;
 
         var info = this.calc.find_best();
         info = { obj: info[0], price: info[1] };
 
         var protect = Game.Has('Get lucky') ? (Game.frenzy ? 1 : 7) * Game.cookiesPs * 12000 : 0;
-        var wait = 0.1 + (protect + info.price - Game.cookies) / Game.cookiesPs;
-        var msg = (wait < 0 ? 'Choosing' : 'Waiting (' + Beautify(wait, 1) + 's) for') + ' "' + info.obj.name + '"';
+        var wait = (protect + info.price - Game.cookies) / Game.cookiesPs;
+        var msg = (wait > 0 ? 'Waiting (' + Beautify(wait, 1) + 's) for' : 'Choosing') + ' "' + info.obj.name + '"';
 
         this.say(msg);
-        if (wait < 0) {
+        if (wait > 0) {
+            this.queue_action(
+                "buy",
+                1000 * (Game.cookiesPs ? wait + 0.05 : 3),
+                function () { if (info.price <= Game.cookies) { this.say('Choosing "' + info.obj.name + '"'); info.obj.buy(); this.total++; } }.bind(this)
+            );
+        } else {
             info.obj.buy();
             this.total++;
-        } else {
-            this.queue_action("buy", 1000 * (Game.cookiesPs ? wait : 3), function () { info.obj.buy(); this.total++; }.bind(this));
         }
     },
 
@@ -139,18 +144,19 @@ Controller.prototype = {
     queue_action: function (name, delay, func) {
         var to = this.actions.timeouts;
         this.unqueue_action(name);
-        to[name] = setTimeout(function () { delete to[name]; func() }, delay);
+        to[name] = setTimeout(function () { func(); delete to[name]; }, delay);
     },
 };
 
-var ctrl = new Controller;
-document.addEventListener('keydown', function (event) {
-    var actions = {
+var view = {
+    ctrl: new Controller,
+    actions: {
         65 /* A */: 'autobuy',
+        90 /* Z */: 'oneshot',
         71 /* G */: 'gold',
         70 /* F */: 'frenzy',
         77 /* M */: 'main',
         83 /* S */: 'status',
-    };
-    ctrl.toggle_action(actions[event.keyCode]);
-});
+    },
+};
+document.addEventListener('keydown', function (e) { if (this.actions[e.keyCode]) this.ctrl.toggle_action(this.actions[e.keyCode]); }.bind(view));
