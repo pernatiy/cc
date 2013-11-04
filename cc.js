@@ -22,9 +22,7 @@ function Calculator () {
 
 Calculator.prototype = {
     cps_acc: function (base_cps, new_cps, price) { return base_cps * (new_cps - base_cps) / (price * price); },
-    /*
-    cps_acc: function (base_cps, new_cps, price) { return            (new_cps - base_cps) / (price * new_cps); },
-    */
+
     calc_bonus: function (item, list) {
         var func = Game.Win;
         Game.Win = function () { };
@@ -34,7 +32,7 @@ Calculator.prototype = {
             Game.CalculateGains();
             cps = Game.cookiesPs;
             this.item.sub(e);
-            return [e, price, this.cps_acc(this.base_cps, cps, price)];
+            return { obj: e, price: price, acc: this.cps_acc(this.base_cps, cps, price) };
         }.bind({ item: item, base_cps: Game.cookiesPs ? Game.cookiesPs : 0.001, cps_acc: this.cps_acc }));
         Game.Win = func;
         Game.CalculateGains();
@@ -43,15 +41,20 @@ Calculator.prototype = {
 
     find_best: function () {
         var pool = [];
-        for (i = 0; i < this.schema.length; i++)
+        for (var i = 0; i < this.schema.length; i++)
             pool = pool.concat(this.calc_bonus(this.schema[i].accessors, this.schema[i].objects()));
-        return pool.reduce(function (m, v) { return m[2] > v[2] ? m : v; }, pool[0]);
+        return pool.reduce(function (m, v) { return m.acc > v.acc ? m : v; }, pool[0]);
     }
 };
 
 // --- Controller
 function Controller () {
-    this.calc = new Calculator();
+    this.calc    = new Calculator();
+    this.notify  = new Audio("http://www.soundjay.com/button/beep-30.mp3");
+    this.protect = true;
+    this.target  = { name: undefined, price: -1 };
+    this.total   = -1;
+
     this.actions = {
         timeouts: { },
 
@@ -59,10 +62,12 @@ function Controller () {
         autobuy: { delay:  250, func: this.autobuy.bind(this) },
         oneshot: { delay:    0, func: this.autobuy.bind(this) },
         status:  { delay:    0, func: this.status.bind(this) },
+        protect: { delay:    0, func: this.toggle_protect.bind(this) },
 
         main:    { delay:   50, func: Game.ClickCookie },
         frenzy:  { delay:   50, func: function () { if (Game.clickFrenzy > 0) Game.ClickCookie(); } },
         gold:    { delay: 3000, func: function () { if (Game.goldenCookie.life > 0 && Game.goldenCookie.wrath == 0) Game.goldenCookie.click(); } },
+        gnotify: { delay: 1000, func: function () { if (Game.goldenCookie.life > 0 && Game.goldenCookie.wrath == 0) this.play(); }.bind(this.notify) },
     };
 
     this.toggle_action('guard');
@@ -80,11 +85,10 @@ Controller.prototype = {
     },
 
     guard: function () {
-        var total = 1000 * (Game.frenzy > 0) + Math.floor(Game.cookieClicks/10) + Game.BuildingsOwned + Game.UpgradesOwned;
-        if (total != this.total || !this.actions.autobuy.id) {
-            this.total = total;
+        var t = this.total;
+        this.total = 1000 * (Game.frenzy > 0) + Math.floor(Game.cookieClicks/10) + Game.BuildingsOwned + Game.UpgradesOwned;
+        if (this.actions.timeouts.buy && (t != this.total || !this.actions.autobuy.id || this.target.price < Game.cookies))
             this.unqueue_action('buy');
-        }
     },
 
     autobuy: function () {
@@ -92,16 +96,17 @@ Controller.prototype = {
             return;
 
         var info = this.calc.find_best();
-        info = { obj: info[0], price: info[1] };
 
-        var protect = Game.Has('Get lucky') ? (Game.frenzy ? 1 : 7) * Game.cookiesPs * 12000 : 0;
+        var protect = this.protect && Game.Has('Get lucky') ? (Game.frenzy ? 1 : 7) * Game.cookiesPs * 12000 : 0;
         var wait = (protect + info.price - Game.cookies) / Game.cookiesPs;
-        var msg = (wait > 0 ? 'Waiting (' + Beautify(wait, 1) + 's) for' : 'Choosing') + ' "' + info.obj.name + '"';
+        var msg = (wait > 0 ? 'Waiting (' + Beautify(wait, 1) + ' s) for' : 'Choosing') + ' "' + info.obj.name + '"';
 
         this.say(msg);
         if (wait > 0) {
+            this.target.name  = info.obj.name;
+            this.target.price = protect + info.price;
             this.queue_action(
-                "buy",
+                'buy',
                 1000 * (Game.cookiesPs ? wait + 0.05 : 3),
                 function () { if (info.price <= Game.cookies) { this.say('Choosing "' + info.obj.name + '"'); info.obj.buy(); this.total++; } }.bind(this)
             );
@@ -112,12 +117,19 @@ Controller.prototype = {
     },
 
     status: function () {
-        var msg = '';
-        for (i in this.actions)
-            if (this.actions[i].delay)
-                msg += i + ': ' + (this.actions[i].id ? 'on' : 'off') + '; ';
+        var act = [];
+        var b2s = function (b) { return b ? 'on'.fontcolor('green') : 'off'.fontcolor('red'); };
+        for (var i in this.actions)
+            if (this.actions[i].delay && i != 'guard')
+                act.push(i + ': ' + b2s(this.actions[i].id));
+        var msg = '<p>' + act.join(', ') + '</p>';
+        msg += '<p>cookie protection for max frenzy/lucky combo: ' + b2s(this.protect) + '</p>';
+        if (this.actions.timeouts.buy)
+            msg += '<p>waiting ' + Beautify((this.target.price - Game.cookies) / Game.cookiesPs, 1) + ' s for "' + this.target.name + '"</p>';
         this.say(msg, true);
     },
+
+    toggle_protect: function () { this.protect = !this.protect; },
 
     toggle_action: function (name) {
         var action = this.actions[name];
@@ -154,9 +166,11 @@ var view = {
         65 /* A */: 'autobuy',
         90 /* Z */: 'oneshot',
         71 /* G */: 'gold',
+        78 /* N */: 'gnotify',
         70 /* F */: 'frenzy',
         77 /* M */: 'main',
         83 /* S */: 'status',
+        80 /* P */: 'protect',
     },
 };
 document.addEventListener('keydown', function (e) { if (this.actions[e.keyCode]) this.ctrl.toggle_action(this.actions[e.keyCode]); }.bind(view));
