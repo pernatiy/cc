@@ -2,7 +2,7 @@
 function Calculator () {
     this.schema = [
         {
-            objects: function () { return Game.UpgradesInStore.filter(function(e) { return ([69, 71, 73, 74, 84, 85, 87].indexOf(e.id) < 0); }); },
+            objects: function () { return Game.UpgradesInStore.filter(function(e) { return ([64, 69, 71, 73, 74, 84, 85, 87, 141].indexOf(e.id) < 0); }); },
             accessors: {
                 add:   function (e) { e.toggle(); },
                 sub:   function (e) { e.toggle(); },
@@ -86,8 +86,8 @@ Controller.prototype = {
 
     guard: function () {
         var t = this.total;
-        this.total = 1000 * (Game.frenzy > 0) + Math.floor(Game.cookieClicks/10) + Game.BuildingsOwned + Game.UpgradesOwned;
-        if (this.actions.timeouts.buy && (t != this.total || !this.actions.autobuy.id || this.target.price < Game.cookies))
+        this.total = 1000 * (Game.frenzy > 0) + Game.BuildingsOwned + Game.UpgradesOwned;
+        if (this.actions.timeouts.buy && (t != this.total || !this.actions.autobuy.id || this.target.price <= Game.cookies))
             this.unqueue_action('buy');
     },
 
@@ -107,7 +107,7 @@ Controller.prototype = {
             this.target.price = protect + info.price;
             this.queue_action(
                 'buy',
-                1000 * (Game.cookiesPs ? wait + 0.05 : 3),
+                1000 * (Game.cookiesPs ? wait + 0.05 : 60),
                 function () { if (info.price <= Game.cookies) { this.say('Choosing "' + info.obj.name + '"'); info.obj.buy(); this.total++; } }.bind(this)
             );
         } else {
@@ -129,7 +129,7 @@ Controller.prototype = {
         this.say(msg, true);
     },
 
-    toggle_protect: function () { this.protect = !this.protect; },
+    toggle_protect: function () { this.protect = !this.protect; this.unqueue_action('buy'); },
 
     toggle_action: function (name) {
         var action = this.actions[name];
