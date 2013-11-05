@@ -29,11 +29,9 @@ Calculator.prototype = {
 
         var res = list.map(function (e) {
             var price = Math.round(this.item.price(e));
-            this.item.add(e);
-            Game.CalculateGains();
+            this.item.add(e); Game.CalculateGains();
             var cps = this.rate * Game.computedMouseCps + Game.cookiesPs;
-            Game.CalculateGains();
-            this.item.sub(e);
+            this.item.sub(e); Game.CalculateGains();
             return { obj: e, price: price, acc: this.cps_acc(this.base_cps, cps, price) };
         }.bind({
             item: item,
