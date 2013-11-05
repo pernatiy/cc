@@ -23,26 +23,33 @@ function Calculator () {
 Calculator.prototype = {
     cps_acc: function (base_cps, new_cps, price) { return base_cps * (new_cps - base_cps) / (price * price); },
 
-    calc_bonus: function (item, list) {
+    calc_bonus: function (item, list, mouse_rate) {
         var func = Game.Win;
         Game.Win = function () { };
+
         var res = list.map(function (e) {
-            var cps, price = this.item.price(e);
+            var price = Math.round(this.item.price(e));
             this.item.add(e);
             Game.CalculateGains();
-            cps = Game.cookiesPs;
+            var cps = this.rate * Game.computedMouseCps + Game.cookiesPs;
+            Game.CalculateGains();
             this.item.sub(e);
             return { obj: e, price: price, acc: this.cps_acc(this.base_cps, cps, price) };
-        }.bind({ item: item, base_cps: Game.cookiesPs ? Game.cookiesPs : 0.001, cps_acc: this.cps_acc }));
+        }.bind({
+            item: item,
+            cps_acc: this.cps_acc,
+            rate: mouse_rate,
+            base_cps: (Game.cookiesPs ? Game.cookiesPs : 0.001) + Game.computedMouseCps * mouse_rate,
+        }));
+
         Game.Win = func;
-        Game.CalculateGains();
         return res;
     },
 
-    find_best: function () {
+    find_best: function (mouse_rate) {
         var pool = [];
         for (var i = 0; i < this.schema.length; i++)
-            pool = pool.concat(this.calc_bonus(this.schema[i].accessors, this.schema[i].objects()));
+            pool = pool.concat(this.calc_bonus(this.schema[i].accessors, this.schema[i].objects(), mouse_rate || 0));
         return pool.reduce(function (m, v) { return m.acc > v.acc ? m : v; }, pool[0]);
     }
 };
@@ -87,7 +94,7 @@ Controller.prototype = {
     guard: function () {
         var t = this.total;
         this.total = 1000 * (Game.frenzy > 0) + Game.BuildingsOwned + Game.UpgradesOwned;
-        if (this.actions.timeouts.buy && (t != this.total || !this.actions.autobuy.id || this.target.price <= Game.cookies))
+        if (this.actions.timeouts.buy && (t != this.total || !this.actions.autobuy.id || this.target.price <= Game.cookies - Game.cookiesPs))
             this.unqueue_action('buy');
     },
 
@@ -95,7 +102,7 @@ Controller.prototype = {
         if (this.actions.timeouts.buy || Game.clickFrenzy > 0)
             return;
 
-        var info = this.calc.find_best();
+        var info = this.calc.find_best(this.actions.main.id ? 1000 / this.actions.main.delay : 0);
 
         var protect = this.protect && Game.Has('Get lucky') ? (Game.frenzy ? 1 : 7) * Game.cookiesPs * 12000 : 0;
         var wait = (protect + info.price - Game.cookies) / Game.cookiesPs;
