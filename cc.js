@@ -2,7 +2,7 @@
 function Calculator () {
     this.schema = [
         {
-            objects: function () { return Game.UpgradesInStore.filter(function(e) { return ([64, 69, 71, 73, 74, 84, 85, 87, 141].indexOf(e.id) < 0); }); },
+            objects: function () { return Game.UpgradesInStore.filter(function(e) { return ([64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 84, 85, 87, 141].indexOf(e.id) < 0); }); },
             accessors: {
                 add:   function (e) { e.toggle(); },
                 sub:   function (e) { e.toggle(); },
@@ -21,7 +21,7 @@ function Calculator () {
 }
 
 Calculator.prototype = {
-    cps_acc: function (base_cps, new_cps, price) { return base_cps * (new_cps - base_cps) / (price * price); },
+    cps_acc: function (base_cps, new_cps, price) { return (base_cps * base_cps) * (new_cps - base_cps) / (price * price); },
 
     calc_bonus: function (item, list, mouse_rate) {
         var func = Game.Win;
@@ -71,7 +71,7 @@ function Controller () {
 
         main:    { delay:   50, func: Game.ClickCookie },
         frenzy:  { delay:   50, func: function () { if (Game.clickFrenzy > 0) Game.ClickCookie(); } },
-        gold:    { delay: 3000, func: function () { if (Game.goldenCookie.life > 0 && Game.goldenCookie.wrath == 0) Game.goldenCookie.click(); } },
+        gold:    { delay: 1000, func: function () { if (Game.goldenCookie.life > 0 && Game.goldenCookie.wrath == 0) Game.goldenCookie.click(); } },
         gnotify: { delay: 1000, func: function () { if (Game.goldenCookie.life > 0 && Game.goldenCookie.wrath == 0) this.play(); }.bind(this.notify) },
     };
 
