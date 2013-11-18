@@ -50,7 +50,7 @@ Calculator.prototype = {
         var zero_buy = Math.sqrt(Game.cookiesEarned * Game.cookiesPs);
         for (var i = 0; i < this.schema.length; i++)
             pool = pool.concat(this.calc_bonus(this.schema[i].accessors, this.schema[i].objects(), mouse_rate || 0));
-        return pool.reduce(function (m, v) { return m.acc < v.acc || (v.acc == 0 && v.price < zero_buy) ? v : m; }, pool[0]);
+        return pool.reduce(function (m, v) { return m.acc == 0 && m.price < zero_buy ? m : (v.acc == 0 && v.price < zero_buy ? v : (m.acc < v.acc ? v : m)); }, pool[0]);
     }
 };
 
