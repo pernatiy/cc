@@ -73,6 +73,7 @@ function Controller () {
 
         main:    { delay:   50, func: Game.ClickCookie },
         frenzy:  { delay:   50, func: function () { if (Game.clickFrenzy > 0) Game.ClickCookie(); } },
+        season:  { delay: 1000, func: function () { if (Game.seasonPopup.life > 0) Game.seasonPopup.click(); } },
         gold:    { delay: 1000, func: function () { if (Game.goldenCookie.life > 0 && Game.goldenCookie.wrath == 0) Game.goldenCookie.click(); } },
         gnotify: { delay: 1000, func: function () { if (Game.goldenCookie.life > 0 && Game.goldenCookie.wrath == 0) this.play(); }.bind(this.notify) },
     };
@@ -172,6 +173,7 @@ var view = {
     actions: {
         65 /* A */: 'autobuy',
         90 /* Z */: 'oneshot',
+        72 /* H */: 'season',
         71 /* G */: 'gold',
         78 /* N */: 'gnotify',
         70 /* F */: 'frenzy',
