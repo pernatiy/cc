@@ -57,7 +57,7 @@ Calculator.prototype = {
 // --- Controller
 function Controller () {
     this.calc    = new Calculator();
-    this.notify  = new Audio("http://www.soundjay.com/button/beep-30.mp3");
+    this.notify  = new Audio("http://www.soundjay.com/button/beep-30b.mp3");
     this.protect = true;
     this.target  = { name: undefined, price: -1 };
     this.total   = -1;
