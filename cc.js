@@ -24,11 +24,11 @@ Calculator.prototype = {
     cps_acc: function (base_cps, new_cps, price) { return (base_cps * base_cps) * (new_cps - base_cps) / (price * price); },
     ecps: function () { return Game.cookiesPs * (1 - Game.cpsSucked) },
 
-    calc_bonus: function (item, list, mouse_rate) {
+    calc_bonus: function (item, list_generator, mouse_rate) {
         var func = Game.Win;
         Game.Win = function () { };
 
-        var res = list.map(function (e) {
+        var res = list_generator().map(function (e) {
             var price = Math.round(this.item.price(e));
             this.item.add(e); Game.CalculateGains();
             var cps = this.calc.ecps() + Game.computedMouseCps * this.rate;
@@ -49,7 +49,7 @@ Calculator.prototype = {
         var pool = [];
         var zero_buy = Math.sqrt(Game.cookiesEarned * Game.cookiesPs);
         for (var i = 0; i < this.schema.length; i++)
-            pool = pool.concat(this.calc_bonus(this.schema[i].accessors, this.schema[i].objects(), mouse_rate || 0));
+            pool = pool.concat(this.calc_bonus(this.schema[i].accessors, this.schema[i].objects, mouse_rate || 0));
         return pool.reduce(function (m, v) { return m.acc == 0 && m.price < zero_buy ? m : (v.acc == 0 && v.price < zero_buy ? v : (m.acc < v.acc ? v : m)); }, pool[0]);
     }
 };
