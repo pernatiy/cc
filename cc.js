@@ -2,7 +2,14 @@
 function Calculator () {
     this.schema = [
         {
-            objects: function () { return Game.UpgradesInStore.filter(function(e) { return ([64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 84, 85, 87, 141].indexOf(e.id) < 0); }); },
+            objects: function () {
+                return Game.UpgradesInStore.filter(function(e) {
+                    return ([
+                        64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 84, 85, 87, 141, // bingo upgrades
+                        182, 183, 184, 185 // season switchers
+                    ].indexOf(e.id) < 0);
+                });
+            },
             accessors: {
                 add:   function (e) { e.bought = 1; },
                 sub:   function (e) { e.bought = 0; },
