@@ -81,18 +81,18 @@ function Controller () {
         season:  { delay: 1000, func: function () {
             const ss = Game.shimmers.filter(s => s.type != 'golden');
             if (ss.length > 0)
-                ss.pop();
+                ss[0].pop();
         } },
         gold:    { delay: 1000, func: function () {
             const gcs = Game.shimmers.filter(s => s.type == 'golden' && s.wrath == 0);
             if (gcs.length > 0)
-                gcs.pop();
+                gcs[0].pop();
         } },
         gnotify: { delay: 1000, func: function () {
             const gcs = Game.shimmers.filter(s => s.type == 'golden' && s.wrath == 0);
             if (gcs.length > 0)
-                this.play();
-        }.bind(this.notify) },
+                this.notify.play();
+        }.bind(this) },
     };
 
     this.toggle_action('guard');
@@ -111,10 +111,12 @@ Controller.prototype = {
     },
 
     guard: function () {
-        var t = this.total;
-        this.total = 1000 * this.is_frenzy() + Game.BuildingsOwned + Game.UpgradesOwned;
-        if (this.actions.timeouts.buy && (t != this.total || !this.actions.autobuy.id || this.target.price <= Game.cookies - this.calc.ecps()))
-            this.unqueue_action('buy');
+        if (this.actions.timeouts.buy) {
+            var t = this.total;
+            this.total = 1000 * this.is_frenzy() + Game.BuildingsOwned + Game.UpgradesOwned;
+            if (t != this.total || !this.actions.autobuy.id || this.target.price <= Game.cookies)
+                this.unqueue_action('buy');
+        }
     },
 
     autobuy: function () {
