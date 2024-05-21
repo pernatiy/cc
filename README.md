@@ -6,18 +6,18 @@ Bot that click cookies for you. Also can buy upgrades in a smart way.
 
 ## Toggle Actions
 
-`M` : main function, i.e. click!
-`F` : click fiercely, but only during click frenzy buff
-`A` : auto buy
-`G` : gold cookie auto pop
-`N` : gold cookie audio notification
-`H` : season stuff auto pop
-`P` : protect cookies from spending to maximize gain from lucky golden cookie
+- `M` : main function, i.e. click!
+- `F` : click fiercely, but only during click frenzy buff
+- `A` : auto buy
+- `G` : gold cookie auto pop
+- `N` : gold cookie audio notification
+- `H` : season stuff auto pop
+- `P` : protect cookies from spending to maximize gain from lucky golden cookie
 
 ## One-Shot Actions
 
-`Z` : auto buy one item
-`S` : show current status
+- `Z` : auto buy one item
+- `S` : show current status
 
 # Running
 
