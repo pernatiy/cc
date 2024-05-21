@@ -59,7 +59,7 @@ Calculator.prototype = {
 // --- Controller
 function Controller () {
     this.calc    = new Calculator();
-    this.notify  = new Audio("https://gist.github.com/pernatiy/38bc231506b06fd85473/raw/beep-30.mp3");
+    this.notify  = new Audio("//github.com/pernatiy/cc/raw/master/beep-30.mp3");
     this.protect = true;
     this.target  = { name: undefined, price: -1 };
     this.total   = -1;
