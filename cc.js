@@ -3,12 +3,7 @@ function Calculator () {
     this.schema = [
         {
             objects: function () {
-                return Game.UpgradesInStore.filter(function(e) {
-                    return ([
-                        64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 84, 85, 87, 141, // bingo upgrades
-                        182, 183, 184, 185 // season switchers
-                    ].indexOf(e.id) < 0);
-                });
+                return Game.UpgradesInStore.filter(u => u.pool == "" || u.pool == "cookie")
             },
             accessors: {
                 add:   function (e) { e.bought = 1; },
@@ -64,7 +59,7 @@ Calculator.prototype = {
 // --- Controller
 function Controller () {
     this.calc    = new Calculator();
-    this.notify  = new Audio("https://gist.github.com/pernatiy/38bc231506b06fd85473/raw/beep-30.mp3"); //source: http://www.soundjay.com/button/beep-30b.mp3
+    this.notify  = new Audio("https://gist.github.com/pernatiy/38bc231506b06fd85473/raw/beep-30.mp3");
     this.protect = true;
     this.target  = { name: undefined, price: -1 };
     this.total   = -1;
@@ -79,10 +74,25 @@ function Controller () {
         protect: { delay:    0, func: this.toggle_protect.bind(this) },
 
         main:    { delay:   50, func: Game.ClickCookie },
-        frenzy:  { delay:   50, func: function () { if (Game.clickFrenzy > 0) Game.ClickCookie(); } },
-        season:  { delay: 1000, func: function () { if (Game.seasonPopup.life > 0) Game.seasonPopup.click(); } },
-        gold:    { delay: 1000, func: function () { if (Game.goldenCookie.life > 0 && Game.goldenCookie.wrath == 0) Game.goldenCookie.click(); } },
-        gnotify: { delay: 1000, func: function () { if (Game.goldenCookie.life > 0 && Game.goldenCookie.wrath == 0) this.play(); }.bind(this.notify) },
+        frenzy:  { delay:   50, func: function () {
+            if (this.is_click_frenzy())
+                Game.ClickCookie();
+        }.bind(this) },
+        season:  { delay: 1000, func: function () {
+            const ss = Game.shimmers.filter(s => s.type != 'golden');
+            if (ss.length > 0)
+                ss.pop();
+        } },
+        gold:    { delay: 1000, func: function () {
+            const gcs = Game.shimmers.filter(s => s.type == 'golden' && s.wrath == 0);
+            if (gcs.length > 0)
+                gcs.pop();
+        } },
+        gnotify: { delay: 1000, func: function () {
+            const gcs = Game.shimmers.filter(s => s.type == 'golden' && s.wrath == 0);
+            if (gcs.length > 0)
+                this.play();
+        }.bind(this.notify) },
     };
 
     this.toggle_action('guard');
@@ -94,6 +104,7 @@ Controller.prototype = {
         if (news) {
             Game.Ticker = msg;
             Game.TickerAge = 10 * Game.fps;
+            Game.TickerDraw();
         } else {
             Game.Popup(msg);
         }
@@ -101,17 +112,17 @@ Controller.prototype = {
 
     guard: function () {
         var t = this.total;
-        this.total = 1000 * (Game.frenzy > 0) + Game.BuildingsOwned + Game.UpgradesOwned;
+        this.total = 1000 * this.is_frenzy() + Game.BuildingsOwned + Game.UpgradesOwned;
         if (this.actions.timeouts.buy && (t != this.total || !this.actions.autobuy.id || this.target.price <= Game.cookies - this.calc.ecps()))
             this.unqueue_action('buy');
     },
 
     autobuy: function () {
-        if (this.actions.timeouts.buy || Game.clickFrenzy > 0)
+        if (this.actions.timeouts.buy || this.is_click_frenzy())
             return;
 
         var info = this.calc.find_best(this.actions.main.id ? 1000 / this.actions.main.delay : 0);
-        var protect = this.protect && Game.Has('Get lucky') ? (Game.frenzy ? 1 : 7) * Game.cookiesPs * 12000 : 0;
+        var protect = this.protect && Game.Has('Get lucky') ? (this.is_frenzy() ? 1 : 7) * Game.cookiesPs * 12000 : 0;
         var wait = (protect + info.price - Game.cookies) / this.calc.ecps();
         var msg = (wait > 0 ? 'Waiting (' + Beautify(wait, 1) + ' s) for' : 'Choosing') + ' "' + info.obj.name + '"';
         console.log("For {cps = " + Beautify(Game.cookiesPs, 1) + ", protect = " + Beautify(protect) + "} best candidate is", info);
@@ -144,6 +155,7 @@ Controller.prototype = {
         this.say(msg, true);
     },
 
+    // --- Helpers
     toggle_protect: function () { this.protect = !this.protect; this.unqueue_action('buy'); },
 
     toggle_action: function (name) {
@@ -172,6 +184,14 @@ Controller.prototype = {
         var to = this.actions.timeouts;
         this.unqueue_action(name);
         to[name] = setTimeout(function () { func(); delete to[name]; }, delay);
+    },
+
+    is_frenzy: function () {
+        return Object.values(Game.buffs).filter(b => b.type.name == "frenzy").length > 0;
+    },
+
+    is_click_frenzy: function () {
+        return Object.values(Game.buffs).filter(b => b.type.name == "click frenzy").length > 0;
     },
 };
 
