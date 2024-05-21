@@ -122,7 +122,7 @@ Controller.prototype = {
             return;
 
         var info = this.calc.find_best(this.actions.main.id ? 1000 / this.actions.main.delay : 0);
-        var protect = this.protect && Game.Has('Get lucky') ? (this.is_frenzy() ? 1 : 7) * Game.cookiesPs * 12000 : 0;
+        var protect = this.protect ? (this.is_frenzy() ? 1 : 7) * Game.cookiesPs * 60*15/0.15 : 0;
         var wait = (protect + info.price - Game.cookies) / this.calc.ecps();
         var msg = (wait > 0 ? 'Waiting (' + Beautify(wait, 1) + ' s) for' : 'Choosing') + ' "' + info.obj.name + '"';
         console.log("For {cps = " + Beautify(Game.cookiesPs, 1) + ", protect = " + Beautify(protect) + "} best candidate is", info);
