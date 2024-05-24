@@ -23,7 +23,7 @@ function Calculator () {
 }
 
 Calculator.prototype = {
-    cps_acc: function (base_cps, new_cps, price) { return (base_cps * base_cps) * (new_cps - base_cps) / (price * price); },
+    cps_acc: function (base_cps, new_cps, price) { return ((new_cps - base_cps)/price)**2 * (1 - Math.exp(-base_cps/price)); },
     ecps: function () { return Game.cookiesPs * (1 - Game.cpsSucked) },
 
     calc_bonus: function (item, list_generator, mouse_rate) {
