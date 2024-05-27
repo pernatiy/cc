@@ -63,6 +63,7 @@ function Controller () {
     this.protect = true;
     this.target  = { name: undefined, price: -1 };
     this.total   = -1;
+    this.say_    = { };
 
     this.actions = {
         timeouts: { },
@@ -107,6 +108,12 @@ Controller.prototype = {
             Game.TickerDraw();
         } else {
             Game.Popup(msg);
+            if (this.say_.id)
+                clearTimeout(this.say_.id);
+            this.say_.id = setTimeout(() => {
+                this.say_.id = undefined;
+                Game.textParticlesY = 0;
+            }, 5000);
         }
     },
 
@@ -198,7 +205,7 @@ Controller.prototype = {
 };
 
 var view = {
-    ctrl: new Controller,
+    ctrl: new Controller(),
     actions: {
         65 /* A */: 'autobuy',
         90 /* Z */: 'oneshot',
