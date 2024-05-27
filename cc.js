@@ -134,19 +134,23 @@ Controller.prototype = {
         if (this.actions.timeouts.buy || this.is_click_frenzy())
             return;
 
-        var info = this.calc.find_best(this.actions.main.id ? 1000 / this.actions.main.delay : 0);
+        var mouse_rate = this.actions.main.id ? 1000 / this.actions.autobuy.delay : 0;
+        var info = this.calc.find_best(mouse_rate);
         var protect = this.protect ? (this.is_frenzy() ? 1 : 7) * Game.cookiesPs * 60*15/0.15 : 0;
         var cookie_delta = protect + info.price - Game.cookies;
         console.log("For {cps = " + Beautify(Game.cookiesPs, 1) + ", protect = " + Beautify(protect) + "} best candidate is", info);
 
         var buy = () => {
-            Game.Notify("autobuy", info.obj.name, [10, 0], 20, 1);
-            info.obj.buy();
-            this.total++;
+            if (info.price <= Game.cookies)
+            {
+                Game.Notify("autobuy", info.obj.name, [10, 0], 20, 1);
+                info.obj.buy();
+                this.total++;
+            }
         }
 
         if (cookie_delta > 0) {
-            var cps = this.calc.ecps() + Game.computedMouseCps * 1000 / this.actions.main.delay;
+            var cps = this.calc.ecps() + Game.computedMouseCps * mouse_rate;
             var wait = Game.cookiesPs ? cookie_delta/cps : 60;
             this.say('Waiting ' + Beautify(wait, 1) + 's for "' + info.obj.name + '"');
             this.target.name  = info.obj.name;
