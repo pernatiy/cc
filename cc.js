@@ -132,22 +132,24 @@ Controller.prototype = {
 
         var info = this.calc.find_best(this.actions.main.id ? 1000 / this.actions.main.delay : 0);
         var protect = this.protect ? (this.is_frenzy() ? 1 : 7) * Game.cookiesPs * 60*15/0.15 : 0;
-        var wait = (protect + info.price - Game.cookies) / this.calc.ecps();
-        var msg = (wait > 0 ? 'Waiting (' + Beautify(wait, 1) + ' s) for' : 'Choosing') + ' "' + info.obj.name + '"';
+        var cookie_delta = protect + info.price - Game.cookies;
         console.log("For {cps = " + Beautify(Game.cookiesPs, 1) + ", protect = " + Beautify(protect) + "} best candidate is", info);
 
-        this.say(msg);
-        if (wait > 0) {
-            this.target.name  = info.obj.name;
-            this.target.price = protect + info.price;
-            this.queue_action(
-                'buy',
-                1000 * (Game.cookiesPs ? wait + 0.05 : 60),
-                function () { if (info.price <= Game.cookies) { this.say('Bought "' + info.obj.name + '"'); info.obj.buy(); this.total++; } }.bind(this)
-            );
-        } else {
+        var buy = () => {
+            Game.Notify("autobuy", info.obj.name, [10, 0], 20, 1);
             info.obj.buy();
             this.total++;
+        }
+
+        if (cookie_delta > 0) {
+            var cps = this.calc.ecps() + Game.computedMouseCps * 1000 / this.actions.main.delay;
+            var wait = Game.cookiesPs ? cookie_delta/cps : 60;
+            this.say('Waiting ' + Beautify(wait, 1) + 's for "' + info.obj.name + '"');
+            this.target.name  = info.obj.name;
+            this.target.price = protect + info.price;
+            this.queue_action('buy', 1000 * wait, buy);
+        } else {
+            buy();
         }
     },
 
