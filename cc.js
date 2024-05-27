@@ -72,7 +72,11 @@ function Controller () {
         autobuy: { delay:  250, func: this.autobuy.bind(this) },
         oneshot: { delay:    0, func: this.autobuy.bind(this) },
         status:  { delay:    0, func: this.status.bind(this) },
-        protect: { delay:    0, func: this.toggle_protect.bind(this) },
+        protect: { delay:    0, func: () => {
+            this.protect = !this.protect;
+            this.unqueue_action('buy');
+            this.say('Cookie protection turned ' + (this.protect ? 'on' : 'off'));
+        } },
 
         main:    { delay:   50, func: Game.ClickCookie },
         frenzy:  { delay:   50, func: function () {
@@ -167,8 +171,6 @@ Controller.prototype = {
     },
 
     // --- Helpers
-    toggle_protect: function () { this.protect = !this.protect; this.unqueue_action('buy'); },
-
     toggle_action: function (name) {
         var action = this.actions[name];
 
