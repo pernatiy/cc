@@ -116,7 +116,7 @@ Controller.prototype = {
                 clearTimeout(this.say_.id);
             this.say_.id = setTimeout(() => {
                 this.say_.id = undefined;
-                Game.textParticlesY = 0;
+                Game.textParticlesY = 60;
             }, 5000);
         }
     },
