@@ -141,11 +141,13 @@ Controller.prototype = {
         console.log("For {cps = " + Beautify(Game.cookiesPs, 1) + ", protect = " + Beautify(protect) + "} best candidate is", info);
 
         var buy = () => {
-            if (info.price <= Game.cookies)
-            {
-                Game.Notify("autobuy", info.obj.name, [10, 0], 20, 1);
+            if (info.price <= Game.cookies) {
+                var buy_mode = Game.buyMode;
+                Game.buyMode = 1; // we are here to buy, not to sell
                 info.obj.buy();
+                Game.buyMode = buy_mode;
                 this.total++;
+                Game.Notify("autobuy", info.obj.name, [10, 0], 20, 1);
             }
         }
 
