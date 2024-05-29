@@ -138,7 +138,7 @@ Controller.prototype = {
         var info = this.calc.find_best(mouse_rate);
         var protect = this.protect ? (this.is_frenzy() ? 1 : 7) * Game.cookiesPs * 60*15/0.15 : 0;
         var cookie_delta = protect + info.price - Game.cookies;
-        console.log("For {cps = " + Beautify(Game.cookiesPs, 1) + ", protect = " + Beautify(protect) + "} best candidate is", info);
+        console.log("For cps = " + Beautify(Game.cookiesPs, 1) + " (protect = " + Beautify(protect) + ") best candidate is " + info.obj.name + " =>", info);
 
         var buy = () => {
             if (info.price <= Game.cookies) {
@@ -147,6 +147,7 @@ Controller.prototype = {
                 info.obj.buy();
                 Game.buyMode = buy_mode;
                 this.total++;
+                console.log('Bought "' + info.obj.name + '"');
                 Game.Notify("autobuy", info.obj.name, [10, 0], 20, 1);
             }
         }
