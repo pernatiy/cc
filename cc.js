@@ -46,9 +46,6 @@ Calculator.prototype = {
     ecps: function () { return Game.cookiesPs * (1 - Game.cpsSucked) },
 
     calc_bonus: function (item, list_generator, mouse_rate) {
-        var func = Game.Win;
-        Game.Win = function () { };
-
         var res = list_generator().map(function (e) {
             var price = Math.round(this.item.price(e));
             this.item.add(e); Game.CalculateGains();
@@ -62,15 +59,22 @@ Calculator.prototype = {
             base_cps: (Game.cookiesPs ? this.ecps() : 0.001) + Game.computedMouseCps * mouse_rate,
         }));
 
-        Game.Win = func;
         return res;
     },
 
     find_best: function (mouse_rate) {
+        const g_win = Game.Win;
+        const g_rawh = Game.cookiesPsRawHighest;
+        Game.Win = function () { };
+
         var pool = [];
         var zero_buy = Math.sqrt(Game.cookiesEarned * Game.cookiesPs);
         for (var i = 0; i < this.schema.length; i++)
             pool = pool.concat(this.calc_bonus(this.schema[i].accessors, this.schema[i].objects, mouse_rate || 0));
+
+        Game.Win = g_win;
+        Game.cookiesPsRawHighest = g_rawh;
+
         return pool.reduce(function (m, v) { return m.acc == 0 && m.price < zero_buy ? m : (v.acc == 0 && v.price < zero_buy ? v : (m.acc < v.acc ? v : m)); }, pool[0]);
     }
 };
