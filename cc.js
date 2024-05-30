@@ -19,63 +19,87 @@ function ActionQueue () {
 
 // --- Calculator
 function Calculator () {
-    this.schema = [
-        {
-            objects: function () {
-                return Game.UpgradesInStore.filter(u => u.pool == "" || u.pool == "cookie")
-            },
-            accessors: {
-                add:   function (e) { e.bought = 1; },
-                sub:   function (e) { e.bought = 0; },
-                price: function (e) { return e.basePrice; }
-            }
+    this.pools = [
+        function () {
+            return Game.UpgradesInStore.filter(u => u.pool == "" || u.pool == "cookie").map(u => {
+                return {
+                    name: u.name,
+                    price: _ => u.basePrice,
+                    add: _ => u.bought = 1,
+                    sub: _ => u.bought = 0,
+                    buy: _ => u.buy(),
+                };
+            });
         },
-        {
-            objects: function () { return Game.ObjectsById; },
-            accessors: {
-                add:   function (e) { e.amount++; },
-                sub:   function (e) { e.amount--; },
-                price: function (e) { return e.price; }
-            }
-        }
+        function () {
+            return Game.ObjectsById.filter(o => o.locked == 0).map(o => {
+                return {
+                    name: o.name,
+                    price: _ => o.price,
+                    add: _ => ++o.amount,
+                    sub: _ => --o.amount,
+                    buy: _ => { var c = o.amount; o.buy(); return o.amount > c; },
+                };
+            });
+        },
     ];
 }
 
 Calculator.prototype = {
-    cps_acc: function (base_cps, new_cps, price) { return ((new_cps - base_cps)/price)**2 * (1 - Math.exp(-base_cps/price)); },
-    ecps: function () { return Game.cookiesPs * (1 - Game.cpsSucked) },
+    ecps: function (click_rate) {
+        return Game.cookiesPs * (1 - Game.cpsSucked) + Game.computedMouseCps * click_rate;
+    },
 
-    calc_bonus: function (item, list_generator, mouse_rate) {
-        var res = list_generator().map(function (e) {
-            var price = Math.round(this.item.price(e));
-            this.item.add(e); Game.CalculateGains();
-            var cps = this.calc.ecps() + Game.computedMouseCps * this.rate;
-            this.item.sub(e); Game.CalculateGains();
-            return { obj: e, price: price, acc: this.calc.cps_acc(this.base_cps, cps, price) };
-        }.bind({
-            item: item,
-            calc: this,
-            rate: mouse_rate,
-            base_cps: (Game.cookiesPs ? this.ecps() : 0.001) + Game.computedMouseCps * mouse_rate,
-        }));
+    metric: function (cur_cps, new_cps, price) {
+        const adj_cur_cps = cur_cps === 0 ? 1e-6 : cur_cps;
+        return ((new_cps - adj_cur_cps)/price)**2 * (1 - Math.exp(-adj_cur_cps/price));
+    },
+
+    calc_bonus: function (generator, click_rate) {
+        var cur_cps = this.ecps(click_rate);
+
+        var res = generator().map(e => {
+            e.add();
+            Game.CalculateGains();
+            var new_cps = this.ecps(click_rate);
+            e.sub();
+            return { item: e, metric: this.metric(cur_cps, new_cps, e.price()) };
+        });
+        Game.CalculateGains();
 
         return res;
     },
 
-    find_best: function (mouse_rate) {
+    find_best: function (click_rate) {
         const g_win = Game.Win;
         const g_rawh = Game.cookiesPsRawHighest;
         Game.Win = function () { };
 
         var pool = [];
-        var zero_buy = Math.sqrt(Game.cookiesEarned * Game.cookiesPs);
-        for (var i = 0; i < this.schema.length; i++)
-            pool = pool.concat(this.calc_bonus(this.schema[i].accessors, this.schema[i].objects, mouse_rate || 0));
+        for (var p of this.pools)
+            pool = pool.concat(this.calc_bonus(p, click_rate || 0));
 
         Game.Win = g_win;
         Game.cookiesPsRawHighest = g_rawh;
 
-        return pool.reduce(function (m, v) { return m.acc == 0 && m.price < zero_buy ? m : (v.acc == 0 && v.price < zero_buy ? v : (m.acc < v.acc ? v : m)); }, pool[0]);
+        // separate zero-production items from the rest
+        const [zeroes, accs] = pool.reduce((r, e) => {
+            if (e.metric === 0)
+                r[0].push(e);
+            else
+                r[1].push(e);
+            return r;
+        }, [[], []]);
+
+        // find the cheapest zero-production item and the most efficient one
+        const zero_candidate = zeroes.reduce((r, e) => r.item.price() < e.item.price() ? r : e, zeroes[0]);
+        const acc_candidate = accs.reduce((r, e) => r.metric < e.metric ? e : r, accs[0]);
+
+        // buy useless item only if it way cheaper than the best one
+        if (zero_candidate?.item.price() < acc_candidate?.item.price()/10)
+            return zero_candidate.item;
+        else
+            return acc_candidate.item;
     }
 };
 
@@ -84,8 +108,8 @@ function Controller () {
     this._notification = new Audio("//github.com/pernatiy/cc/raw/master/beep-30.mp3");
     this._queue   = new ActionQueue();
     this._calc    = new Calculator();
-    this._protect = true;
-    this._target  = { name: undefined, price: -1 };
+    this._protect = false;
+    this._target  = { name: undefined, cookies: -1 };
     this._total   = -1;
     this._say     = { };
 
@@ -147,8 +171,10 @@ Controller.prototype = {
     guard: function () {
         if (this._queue.is_enqueued('buy')) {
             var t = this._total;
-            this._total = 1000 * this.is_frenzy() + Game.BuildingsOwned + Game.UpgradesOwned;
-            if (t != this._total || !this.actions.autobuy.id || this._target.price <= Game.cookies)
+            this._total = 1000 * !!this.actions.main.id +
+                1000 * this.is_frenzy() +
+                Game.BuildingsOwned + Game.UpgradesOwned;
+            if (t != this._total || !this.actions.autobuy.id || this._target.cookies <= Game.cookies)
                 this._queue.dequeue('buy');
         }
     },
@@ -157,30 +183,27 @@ Controller.prototype = {
         if (this._queue.is_enqueued('buy') || this.is_click_frenzy())
             return;
 
-        var mouse_rate = this.actions.main.id ? 1000 / this.actions.autobuy.delay : 0;
-        var info = this._calc.find_best(mouse_rate);
+        var info = this._calc.find_best(this.get_click_rate());
         var protect = this._protect ? (this.is_frenzy() ? 1 : 7) * Game.cookiesPs * 60*15/0.15 : 0;
-        var cookie_delta = protect + info.price - Game.cookies;
-        console.log("For cps = " + Beautify(Game.cookiesPs, 1) + " (protect = " + Beautify(protect) + ") best candidate is " + info.obj.name + " =>", info);
+        var cookie_delta = protect + info.price() - Game.cookies;
+        console.log("For cps = " + Beautify(Game.cookiesPs, 1) + " (protect = " + Beautify(protect) + ") best candidate is " + info.name + " =>", info);
 
-        var buy = () => {
-            if (info.price <= Game.cookies) {
-                var buy_mode = Game.buyMode;
-                Game.buyMode = 1; // we are here to buy, not to sell
-                info.obj.buy();
-                Game.buyMode = buy_mode;
+        var buy = _ => {
+            var buy_mode = Game.buyMode;
+            Game.buyMode = 1;
+            if (info.buy()) {
                 this._total++;
-                console.log('Bought "' + info.obj.name + '"');
-                this.notify("autobuy", info.obj.name);
+                this.notify("autobuy", info.name);
             }
+            Game.buyMode = buy_mode;
         }
 
         if (cookie_delta > 0) {
-            var cps = this._calc.ecps() + Game.computedMouseCps * mouse_rate;
+            var cps = this._calc.ecps(this.get_click_rate());
             var wait = Game.cookiesPs ? cookie_delta/cps : 60;
-            this.say('Waiting ' + Beautify(wait, 1) + 's for "' + info.obj.name + '"');
-            this._target.name  = info.obj.name;
-            this._target.price = protect + info.price;
+            this.say('Waiting ' + Beautify(wait, 1) + 's for "' + info.name + '"');
+            this._target.name    = info.name;
+            this._target.cookies = protect + info.price();
             this._queue.enqueue('buy', 1000 * wait, buy);
         } else {
             buy();
@@ -196,7 +219,7 @@ Controller.prototype = {
         var msg = '<p>' + act.join(', ') + '</p>';
         msg += '<p>cookie protection for max frenzy/lucky combo: ' + b2s(this._protect) + '</p>';
         if (this._queue.is_enqueued('buy'))
-            msg += '<p>waiting ' + Beautify((this._target.price - Game.cookies) / this._calc.ecps(), 1) + ' s for "' + this._target.name + '"</p>';
+            msg += '<p>waiting ' + Beautify((this._target.cookies - Game.cookies) / this._calc.ecps(this.get_click_rate()), 1) + ' s for "' + this._target.name + '"</p>';
         this.say_news(msg);
     },
 
@@ -213,6 +236,10 @@ Controller.prototype = {
         } else {
             action.func();
         }
+    },
+
+    get_click_rate: function () {
+        return this.actions.main.id ? 1000 / this.actions.main.delay : 0;
     },
 
     is_frenzy: function () {
