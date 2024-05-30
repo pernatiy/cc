@@ -122,16 +122,22 @@ function Controller () {
 }
 
 Controller.prototype = {
-    say: function (msg, news) {
+    say: function (msg) {
         console.log(msg);
-        if (news) {
-            Game.Ticker = msg;
-            Game.TickerAge = 10 * Game.fps;
-            Game.TickerDraw();
-        } else {
-            Game.Popup(msg);
-            this._queue.enqueue('clear_stack', 5000, () => { Game.textParticlesY = 60; });
-        }
+        Game.Popup(msg);
+        this._queue.enqueue('clear_stack', 5000, () => { Game.textParticlesY = 60; });
+    },
+
+    say_news: function (msg) {
+        console.log(msg);
+        Game.Ticker = msg;
+        Game.TickerAge = 10 * Game.fps;
+        Game.TickerDraw();
+    },
+
+    notify: function (title, msg) {
+        console.log(title + ": " + msg);
+        Game.Notify(title, msg, [10, 0], 20, 1);
     },
 
     guard: function () {
@@ -161,7 +167,7 @@ Controller.prototype = {
                 Game.buyMode = buy_mode;
                 this._total++;
                 console.log('Bought "' + info.obj.name + '"');
-                Game.Notify("autobuy", info.obj.name, [10, 0], 20, 1);
+                this.notify("autobuy", info.obj.name);
             }
         }
 
@@ -187,7 +193,7 @@ Controller.prototype = {
         msg += '<p>cookie protection for max frenzy/lucky combo: ' + b2s(this._protect) + '</p>';
         if (this._queue.is_enqueued('buy'))
             msg += '<p>waiting ' + Beautify((this._target.price - Game.cookies) / this._calc.ecps(), 1) + ' s for "' + this._target.name + '"</p>';
-        this.say(msg, true);
+        this.say_news(msg);
     },
 
     // --- Helpers
