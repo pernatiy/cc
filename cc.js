@@ -1,20 +1,27 @@
 // --- Action Queue
 function ActionQueue () {
     this._queue = {};
+}
 
-    this.enqueue = (name, time, action) => {
+ActionQueue.prototype = {
+    enqueue: function (name, time, action) {
         this.dequeue(name);
-        this._queue[name] = setTimeout(action, time);
-    };
+        this._queue[name] = setTimeout(() => {
+            delete this._queue[name];
+            action();
+        }, time);
+    },
 
-    this.dequeue = (name) => {
+    dequeue: function (name) {
         if (this._queue[name]) {
             clearTimeout(this._queue[name]);
             delete this._queue[name];
         }
-    };
+    },
 
-    this.is_enqueued = (name) => this._queue[name] ? true : false;
+    is_enqueued: function (name) {
+        return this._queue[name] ? true : false
+    },
 }
 
 // --- Calculator
