@@ -1,3 +1,22 @@
+// --- Action Queue
+function ActionQueue () {
+    this._queue = {};
+
+    this.enqueue = (name, time, action) => {
+        this.dequeue(name);
+        this._queue[name] = setTimeout(action, time);
+    };
+
+    this.dequeue = (name) => {
+        if (this._queue[name]) {
+            clearTimeout(this._queue[name]);
+            delete this._queue[name];
+        }
+    };
+
+    this.is_enqueued = (name) => this._queue[name] ? true : false;
+}
+
 // --- Calculator
 function Calculator () {
     this.schema = [
@@ -58,46 +77,45 @@ Calculator.prototype = {
 
 // --- Controller
 function Controller () {
-    this.calc    = new Calculator();
-    this.notify  = new Audio("//github.com/pernatiy/cc/raw/master/beep-30.mp3");
-    this.protect = true;
-    this.target  = { name: undefined, price: -1 };
-    this.total   = -1;
-    this.say_    = { };
+    this._notification = new Audio("//github.com/pernatiy/cc/raw/master/beep-30.mp3");
+    this._queue   = new ActionQueue();
+    this._calc    = new Calculator();
+    this._protect = true;
+    this._target  = { name: undefined, price: -1 };
+    this._total   = -1;
+    this._say     = { };
 
     this.actions = {
-        timeouts: { },
-
-        guard:   { delay: 1000, func: this.guard.bind(this) },
-        autobuy: { delay:  250, func: this.autobuy.bind(this) },
-        oneshot: { delay:    0, func: this.autobuy.bind(this) },
-        status:  { delay:    0, func: this.status.bind(this) },
+        guard:   { delay: 1000, func: () => { this.guard();   } },
+        autobuy: { delay:  250, func: () => { this.autobuy(); } },
+        oneshot: { delay:    0, func: () => { this.autobuy(); } },
+        status:  { delay:    0, func: () => { this.status();  } },
         protect: { delay:    0, func: () => {
-            this.protect = !this.protect;
-            this.unqueue_action('buy');
-            this.say('Cookie protection turned ' + (this.protect ? 'on' : 'off'));
+            this._protect = !this._protect;
+            this._queue.dequeue('buy');
+            this.say('Cookie protection turned ' + (this._protect ? 'on' : 'off'));
         } },
 
         main:    { delay:   50, func: Game.ClickCookie },
-        frenzy:  { delay:   50, func: function () {
+        frenzy:  { delay:   50, func: () => {
             if (this.is_click_frenzy())
                 Game.ClickCookie();
-        }.bind(this) },
-        season:  { delay: 1000, func: function () {
+        } },
+        season:  { delay: 1000, func: () => {
             const ss = Game.shimmers.filter(s => s.type != 'golden');
             if (ss.length > 0)
                 ss[0].pop();
         } },
-        gold:    { delay: 1000, func: function () {
+        gold:    { delay: 1000, func: () => {
             const gcs = Game.shimmers.filter(s => s.type == 'golden' && s.wrath == 0);
             if (gcs.length > 0)
                 gcs[0].pop();
         } },
-        gnotify: { delay: 1000, func: function () {
+        gnotify: { delay: 1000, func: () => {
             const gcs = Game.shimmers.filter(s => s.type == 'golden' && s.wrath == 0);
             if (gcs.length > 0)
-                this.notify.play();
-        }.bind(this) },
+                this._notification.play();
+        } },
     };
 
     this.toggle_action('guard');
@@ -112,31 +130,26 @@ Controller.prototype = {
             Game.TickerDraw();
         } else {
             Game.Popup(msg);
-            if (this.say_.id)
-                clearTimeout(this.say_.id);
-            this.say_.id = setTimeout(() => {
-                this.say_.id = undefined;
-                Game.textParticlesY = 60;
-            }, 5000);
+            this._queue.enqueue('clear_stack', 5000, () => { Game.textParticlesY = 60; });
         }
     },
 
     guard: function () {
-        if (this.actions.timeouts.buy) {
-            var t = this.total;
-            this.total = 1000 * this.is_frenzy() + Game.BuildingsOwned + Game.UpgradesOwned;
-            if (t != this.total || !this.actions.autobuy.id || this.target.price <= Game.cookies)
-                this.unqueue_action('buy');
+        if (this._queue.is_enqueued('buy')) {
+            var t = this._total;
+            this._total = 1000 * this.is_frenzy() + Game.BuildingsOwned + Game.UpgradesOwned;
+            if (t != this._total || !this.actions.autobuy.id || this._target.price <= Game.cookies)
+                this._queue.dequeue('buy');
         }
     },
 
     autobuy: function () {
-        if (this.actions.timeouts.buy || this.is_click_frenzy())
+        if (this._queue.is_enqueued('buy') || this.is_click_frenzy())
             return;
 
         var mouse_rate = this.actions.main.id ? 1000 / this.actions.autobuy.delay : 0;
-        var info = this.calc.find_best(mouse_rate);
-        var protect = this.protect ? (this.is_frenzy() ? 1 : 7) * Game.cookiesPs * 60*15/0.15 : 0;
+        var info = this._calc.find_best(mouse_rate);
+        var protect = this._protect ? (this.is_frenzy() ? 1 : 7) * Game.cookiesPs * 60*15/0.15 : 0;
         var cookie_delta = protect + info.price - Game.cookies;
         console.log("For cps = " + Beautify(Game.cookiesPs, 1) + " (protect = " + Beautify(protect) + ") best candidate is " + info.obj.name + " =>", info);
 
@@ -146,19 +159,19 @@ Controller.prototype = {
                 Game.buyMode = 1; // we are here to buy, not to sell
                 info.obj.buy();
                 Game.buyMode = buy_mode;
-                this.total++;
+                this._total++;
                 console.log('Bought "' + info.obj.name + '"');
                 Game.Notify("autobuy", info.obj.name, [10, 0], 20, 1);
             }
         }
 
         if (cookie_delta > 0) {
-            var cps = this.calc.ecps() + Game.computedMouseCps * mouse_rate;
+            var cps = this._calc.ecps() + Game.computedMouseCps * mouse_rate;
             var wait = Game.cookiesPs ? cookie_delta/cps : 60;
             this.say('Waiting ' + Beautify(wait, 1) + 's for "' + info.obj.name + '"');
-            this.target.name  = info.obj.name;
-            this.target.price = protect + info.price;
-            this.queue_action('buy', 1000 * wait, buy);
+            this._target.name  = info.obj.name;
+            this._target.price = protect + info.price;
+            this._queue.enqueue('buy', 1000 * wait, buy);
         } else {
             buy();
         }
@@ -171,9 +184,9 @@ Controller.prototype = {
             if (this.actions[i].delay && i != 'guard')
                 act.push(i + ': ' + b2s(this.actions[i].id));
         var msg = '<p>' + act.join(', ') + '</p>';
-        msg += '<p>cookie protection for max frenzy/lucky combo: ' + b2s(this.protect) + '</p>';
-        if (this.actions.timeouts.buy)
-            msg += '<p>waiting ' + Beautify((this.target.price - Game.cookies) / this.calc.ecps(), 1) + ' s for "' + this.target.name + '"</p>';
+        msg += '<p>cookie protection for max frenzy/lucky combo: ' + b2s(this._protect) + '</p>';
+        if (this._queue.is_enqueued('buy'))
+            msg += '<p>waiting ' + Beautify((this._target.price - Game.cookies) / this._calc.ecps(), 1) + ' s for "' + this._target.name + '"</p>';
         this.say(msg, true);
     },
 
@@ -190,20 +203,6 @@ Controller.prototype = {
         } else {
             action.func();
         }
-    },
-
-    unqueue_action: function (name) {
-        var to = this.actions.timeouts;
-        if (to[name]) {
-            clearTimeout(to[name]);
-            delete to[name];
-        }
-    },
-
-    queue_action: function (name, delay, func) {
-        var to = this.actions.timeouts;
-        this.unqueue_action(name);
-        to[name] = setTimeout(function () { func(); delete to[name]; }, delay);
     },
 
     is_frenzy: function () {
