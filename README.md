@@ -23,7 +23,7 @@ Bot that click cookies for you. Also can buy upgrades in a smart way.
 
 Create a bookmark with content
 ```
-javascript:(function(){var n=document.createElement('script');n.src='//cdn.jsdelivr.net/gh/pernatiy/cc/cc.js';document.body.appendChild(n);}());
+javascript:(function(){var n=document.createElement('script');n.src='//cdn.jsdelivr.net/gh/pernatiy/cc@v1.0.0/cc.js';document.body.appendChild(n);}());
 ```
 Once game is loaded click on a bookmark to start the bot
 
