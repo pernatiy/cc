@@ -119,8 +119,6 @@ function Controller () {
     this._calc    = new Calculator();
     this._protect = false;
     this._target  = { name: undefined, cookies: -1 };
-    this._total   = -1;
-    this._say     = { };
 
     this.actions = {
         guard:   { delay: 1000, func: () => { this.guard(); } },
@@ -158,6 +156,8 @@ function Controller () {
         } },
     };
 
+    this._total = this.get_guard_total();
+
     this.toggle_action('guard');
 }
 
@@ -183,9 +183,7 @@ Controller.prototype = {
     guard: function () {
         if (this._queue.is_enqueued('buy')) {
             var t = this._total;
-            this._total = 10 * !!this.actions.main.id +
-                10 * this.is_frenzy() +
-                Game.BuildingsOwned + Game.UpgradesOwned;
+            this._total = this.get_guard_total();
             if (t != this._total || !this.actions.autobuy.id || this._target.cookies <= Game.cookies)
                 this._queue.dequeue('buy');
         }
@@ -262,6 +260,12 @@ Controller.prototype = {
 
     is_click_frenzy: function () {
         return Object.values(Game.buffs).filter(b => b.type.name == "click frenzy").length > 0;
+    },
+
+    get_guard_total: function () {
+        return 10 * !!this.actions.main.id +
+            10 * this.is_frenzy() +
+            Game.BuildingsOwned + Game.UpgradesOwned;
     },
 };
 
