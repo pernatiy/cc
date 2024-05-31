@@ -31,7 +31,8 @@ function Calculator () {
             return Game.UpgradesInStore.filter(u => u.pool == "" || u.pool == "cookie").map(u => {
                 return {
                     name: u.name,
-                    price: _ => u.basePrice,
+                    price: u.basePrice,
+                    icon: u.icon,
                     add: _ => u.bought = 1,
                     sub: _ => u.bought = 0,
                     buy: _ => u.buy(),
@@ -42,7 +43,8 @@ function Calculator () {
             return Game.ObjectsById.filter(o => o.locked == 0).map(o => {
                 return {
                     name: o.name,
-                    price: _ => o.price,
+                    price: o.price,
+                    icon: [o.iconColumn, 0],
                     add: _ => ++o.amount,
                     sub: _ => --o.amount,
                     buy: _ => { var c = o.amount; o.buy(); return o.amount > c; },
@@ -70,7 +72,7 @@ Calculator.prototype = {
             Game.CalculateGains();
             var new_cps = this.ecps(click_rate);
             e.sub();
-            return { item: e, metric: this.metric(cur_cps, new_cps, e.price()) };
+            return { item: e, metric: this.metric(cur_cps, new_cps, e.price) };
         });
         Game.CalculateGains();
 
@@ -99,14 +101,14 @@ Calculator.prototype = {
         }, [[], []]);
 
         // find the cheapest zero-production item and the most efficient one
-        const zero_candidate = zeroes.reduce((r, e) => r.item.price() < e.item.price() ? r : e, zeroes[0]);
+        const zero_candidate = zeroes.reduce((r, e) => r.item.price < e.item.price ? r : e, zeroes[0]);
         const acc_candidate = accs.reduce((r, e) => r.metric < e.metric ? e : r, accs[0]);
 
         // buy useless item only if it way cheaper than the best one
-        if (zero_candidate?.item.price() < acc_candidate?.item.price()/10)
-            return zero_candidate.item;
+        if (zero_candidate?.item.price < acc_candidate?.item.price/10)
+            return zero_candidate?.item;
         else
-            return acc_candidate.item;
+            return acc_candidate?.item;
     }
 };
 
@@ -121,21 +123,24 @@ function Controller () {
     this._say     = { };
 
     this.actions = {
-        guard:   { delay: 1000, func: () => { this.guard();   } },
-        autobuy: { delay:  250, func: () => { this.autobuy(); } },
-        oneshot: { delay:    0, func: () => { this.autobuy(); } },
-        status:  { delay:    0, func: () => { this.status();  } },
+        guard:   { delay: 1000, func: () => { this.guard(); } },
+
+        oneshot: { delay:    0, func: () => { this.autobuy(true); } },
+        status:  { delay:    0, func: () => { this.status(); } },
         protect: { delay:    0, func: () => {
             this._protect = !this._protect;
             this._queue.dequeue('buy');
             this.say('Cookie protection turned ' + (this._protect ? 'on' : 'off'));
         } },
 
+        autobuy: { delay:  250, func: () => { this.autobuy(); }, on_trigger: () => { this._queue.dequeue('buy'); }, },
+
         main:    { delay:   50, func: Game.ClickCookie },
         frenzy:  { delay:   50, func: () => {
             if (this.is_click_frenzy())
                 Game.ClickCookie();
         } },
+
         season:  { delay: 1000, func: () => {
             const ss = Game.shimmers.filter(s => s.type != 'golden');
             if (ss.length > 0)
@@ -170,29 +175,29 @@ Controller.prototype = {
         Game.TickerDraw();
     },
 
-    notify: function (title, msg) {
+    notify: function (title, msg, icon = [10, 0]) {
         console.log(title + ": " + msg);
-        Game.Notify(title, msg, [10, 0], 20, 1);
+        Game.Notify(title, msg, icon, 20, 1);
     },
 
     guard: function () {
         if (this._queue.is_enqueued('buy')) {
             var t = this._total;
-            this._total = 1000 * !!this.actions.main.id +
-                1000 * this.is_frenzy() +
+            this._total = 10 * !!this.actions.main.id +
+                10 * this.is_frenzy() +
                 Game.BuildingsOwned + Game.UpgradesOwned;
             if (t != this._total || !this.actions.autobuy.id || this._target.cookies <= Game.cookies)
                 this._queue.dequeue('buy');
         }
     },
 
-    autobuy: function () {
-        if (this._queue.is_enqueued('buy') || this.is_click_frenzy())
+    autobuy: function (force = false) {
+        if (!force && (this._queue.is_enqueued('buy') || this.is_click_frenzy()))
             return;
 
         var info = this._calc.find_best(this.get_click_rate());
         var protect = this._protect ? (this.is_frenzy() ? 1 : 7) * Game.cookiesPs * 60*15/0.15 : 0;
-        var cookie_delta = protect + info.price() - Game.cookies;
+        var cookie_delta = protect + info.price - Game.cookies;
         console.log("For cps = " + Beautify(Game.cookiesPs, 1) + " (protect = " + Beautify(protect) + ") best candidate is " + info.name + " =>", info);
 
         var buy = _ => {
@@ -200,17 +205,17 @@ Controller.prototype = {
             Game.buyMode = 1;
             if (info.buy()) {
                 this._total++;
-                this.notify("autobuy", info.name);
+                this.notify("autobuy", info.name, info.icon);
             }
             Game.buyMode = buy_mode;
         }
 
         if (cookie_delta > 0) {
             var cps = this._calc.ecps(this.get_click_rate());
-            var wait = Game.cookiesPs ? cookie_delta/cps : 60;
+            var wait = cps > 0 ? cookie_delta/cps : 15;
             this.say('Waiting ' + Beautify(wait, 1) + 's for "' + info.name + '"');
             this._target.name    = info.name;
-            this._target.cookies = protect + info.price();
+            this._target.cookies = protect + info.price;
             this._queue.enqueue('buy', 1000 * wait, buy);
         } else {
             buy();
@@ -240,6 +245,8 @@ Controller.prototype = {
         if (action.delay) {
             action.id = action.id ? clearInterval(action.id) : setInterval(action.func, action.delay);
             this.say('Action "' + name + '" turned ' + (action.id ? 'on' : 'off'));
+            if (action.on_trigger)
+                action.on_trigger(!!action.id);
         } else {
             action.func();
         }
