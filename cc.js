@@ -47,7 +47,7 @@ function Calculator () {
                     icon: [o.iconColumn, 0],
                     add: _ => ++o.amount,
                     sub: _ => --o.amount,
-                    buy: _ => { var c = o.amount; o.buy(); return o.amount > c; },
+                    buy: _ => { var c = o.amount; o.buy(1); return o.amount > c; },
                 };
             });
         },
