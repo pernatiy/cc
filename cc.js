@@ -196,7 +196,7 @@ Controller.prototype = {
             return;
 
         var info = this._calc.find_best(this.get_click_rate());
-        var protect = this._protect ? (this.is_frenzy() ? 1 : 7) * Game.cookiesPs * 60*15/0.15 : 0;
+        var protect = this._protect ? Game.cookiesPs * 60*15/0.15 : 0;
         var cookie_delta = protect + info.price - Game.cookies;
         console.log("For cps = " + Beautify(Game.cookiesPs, 1) + " (protect = " + Beautify(protect) + ") best candidate is " + info.name + " =>", info);
 
