@@ -117,7 +117,7 @@ function Controller () {
     this._notification = new Audio("//github.com/pernatiy/cc/raw/master/beep-30.mp3");
     this._queue   = new ActionQueue();
     this._calc    = new Calculator();
-    this._protect = false;
+    this._protect = { amount: _ => 0, time: 0 };
     this._target  = { name: undefined, cookies: -1 };
 
     this.actions = {
@@ -126,9 +126,16 @@ function Controller () {
         oneshot: { delay:    0, func: () => { this.autobuy(true); } },
         status:  { delay:    0, func: () => { this.status(); } },
         protect: { delay:    0, func: () => {
-            this._protect = !this._protect;
-            this._queue.dequeue('buy');
-            this.say('Cookie protection turned ' + (this._protect ? 'on' : 'off'));
+            var m = this._protect.time;
+            switch (m) {
+                case  0: m = 15; break;
+                case 15: m = 30; break;
+                case 30: m =  0; break;
+            }
+            this._protect.time = m;
+            this._protect.amount = _ => Game.cookiesPsRaw * m*60 / 0.15;
+            this.say('Protect cookies worth ' + m + 'min of production');
+            this._queue.enqueue('protection_update', 500, _ => this.autobuy(true));
         } },
 
         autobuy: { delay:  250, func: () => { this.autobuy(); }, on_trigger: () => { this._queue.dequeue('buy'); }, },
@@ -196,9 +203,9 @@ Controller.prototype = {
         var info = this._calc.find_best(this.get_click_rate());
         if (!info) return; // nothing to buy((
 
-        var protect = this._protect ? Game.cookiesPs * 60*15/0.15 : 0;
+        var protect = this._protect.amount();
         var cookie_delta = protect + info.price - Game.cookies;
-        console.log("For cps = " + Beautify(Game.cookiesPs, 1) + " (protect = " + Beautify(protect) + ") best candidate is " + info.name + " =>", info);
+        console.log("For cps = " + Beautify(Game.cookiesPs, 1) + " best candidate is " + info.name + " =>", info);
 
         var buy = _ => {
             var buy_mode = Game.buyMode;
@@ -215,7 +222,7 @@ Controller.prototype = {
             var wait = cps > 0 ? cookie_delta/cps : 15;
             this.say('Waiting ' + Beautify(wait, 1) + 's for "' + info.name + '"');
             this._target.name    = info.name;
-            this._target.cookies = protect + info.price;
+            this._target.cookies = info.price;
             this._queue.enqueue('buy', 1000 * wait, buy);
         } else {
             buy();
@@ -229,9 +236,9 @@ Controller.prototype = {
             if (this.actions[i].delay && i != 'guard')
                 act.push(i + ': ' + b2s(this.actions[i].id));
         var msg = '<p>' + act.join(', ') + '</p>';
-        msg += '<p>cookie protection for max frenzy/lucky combo: ' + b2s(this._protect) + '</p>';
+        msg += '<p>cookie protection: '+this._protect.time+'min ('+Beautify(this._protect.amount())+')</p>';
         if (this._queue.is_enqueued('buy'))
-            msg += '<p>waiting ' + Beautify((this._target.cookies - Game.cookies) / this._calc.ecps(this.get_click_rate()), 1) + ' s for "' + this._target.name + '"</p>';
+            msg += '<p>waiting ' + Beautify((this._target.cookies + this._protect.amount() - Game.cookies) / this._calc.ecps(this.get_click_rate()), 1) + 's for "' + this._target.name + '"</p>';
         this.say_news(msg);
     },
 
