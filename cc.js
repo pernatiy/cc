@@ -189,7 +189,8 @@ Controller.prototype = {
     autobuy: function (force = false) {
         // 1. purchase target if it's affordable
         if (this._target && this._protect.amount() + this._target.price < Game.cookies)
-            this.autobuy_exec();
+            if (this.autobuy_exec())
+                return;
 
         // 2. force check if number of buildings or cps was changed externally
         var t_ = this._guard.total;
@@ -222,15 +223,18 @@ Controller.prototype = {
     },
 
     autobuy_exec: function () {
+        var success = false;
         var info = this._target;
         var buy_mode = Game.buyMode;
         Game.buyMode = 1;
         if (info.buy()) {
             ++this._total;
+            success = true;
             this.notify("autobuy", info.name, info.icon);
         }
         Game.buyMode = buy_mode;
         this._target = null;
+        return success;
     },
 
     gold_cookie_popper: function () {
