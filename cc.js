@@ -155,12 +155,14 @@ function Controller () {
                 ss[0].pop();
         } },
         gold:    { delay: 1000, func: () => { this.gold_cookie_popper(); } },
-        gnotify: { delay: 1000, func: () => {
+        notify:  { delay: 1000, func: () => {
             const gcs = Game.shimmers.filter(s => s.type == 'golden' && s.wrath == 0);
             if (gcs.length > 0)
                 this._notification.play();
         } },
     };
+
+    this.say("Clicker Bot is here to help you!");
 }
 
 Controller.prototype = {
@@ -247,7 +249,7 @@ Controller.prototype = {
             if (this.actions[i].delay && i != 'guard')
                 act.push(i + ': ' + b2s(this.actions[i].id));
         var msg = '<p>' + act.join(', ') + '</p>';
-        msg += '<p>cookie protection: '+this._protect.time+'min ('+Beautify(this._protect.amount())+')</p>';
+        msg += '<p>protection: '+this._protect.time+'min ('+Beautify(this._protect.amount())+')</p>';
         if (this._target)
             msg += '<p>waiting ' + Beautify(this.get_wait_time()) + 's for "' + this._target.name + '"</p>';
         this.say_news(msg);
@@ -300,7 +302,7 @@ var view = {
         90 /* Z */: 'oneshot',
         72 /* H */: 'season',
         71 /* G */: 'gold',
-        78 /* N */: 'gnotify',
+        78 /* N */: 'notify',
         70 /* F */: 'frenzy',
         77 /* M */: 'main',
         83 /* S */: 'status',
