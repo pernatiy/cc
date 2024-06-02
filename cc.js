@@ -154,11 +154,7 @@ function Controller () {
             if (ss.length > 0)
                 ss[0].pop();
         } },
-        gold:    { delay: 1000, func: () => {
-            const gcs = Game.shimmers.filter(s => s.type == 'golden' && s.wrath == 0);
-            if (gcs.length > 0)
-                gcs[0].pop();
-        } },
+        gold:    { delay: 1000, func: () => { this.gold_cookie_popper(); } },
         gnotify: { delay: 1000, func: () => {
             const gcs = Game.shimmers.filter(s => s.type == 'golden' && s.wrath == 0);
             if (gcs.length > 0)
@@ -235,6 +231,14 @@ Controller.prototype = {
         this._target = null;
     },
 
+    gold_cookie_popper: function () {
+        var gcs = Game.shimmers.filter(s => s.type == 'golden' && s.wrath == 0);
+        if (gcs.length > 0)
+            gcs[0].pop();
+
+        if (gcs.length > 1)
+            this._queue.enqueue('clear_gc', 50, () => { this.gold_cookie_popper(); });
+    },
 
     status: function () {
         var act = [];
@@ -249,7 +253,6 @@ Controller.prototype = {
         this.say_news(msg);
     },
 
-    // --- Helpers
     toggle_action: function (name) {
         var action = this.actions[name];
 
