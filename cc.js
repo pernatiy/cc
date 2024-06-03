@@ -104,11 +104,11 @@ Calculator.prototype = {
         const zero_candidate = zeroes.reduce((r, e) => r.item.price < e.item.price ? r : e, zeroes[0]);
         const acc_candidate = accs.reduce((r, e) => r.metric < e.metric ? e : r, accs[0]);
 
-        // buy useless item only if it way cheaper than the best one
-        if (zero_candidate?.item.price < acc_candidate?.item.price/10)
+        // prefer non-acceleration items only if they are cheaper than 3 minute of production or there are no accelerators
+        if (zero_candidate?.item.price < Game.cookiesPsRaw * 3*60 || acc_candidate === undefined)
             return zero_candidate?.item;
         else
-            return acc_candidate?.item;
+            return acc_candidate.item;
     }
 };
 
