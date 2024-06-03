@@ -129,9 +129,10 @@ function Controller () {
         protect: { delay:    0, func: () => {
             var m = this._protect.time;
             switch (m) {
-                case  0: m = 15; break;
-                case 15: m = 30; break;
-                case 30: m =  0; break;
+                case   0: m =  15; break;
+                case  15: m =  30; break;
+                case  30: m = 105; break;
+                case 105: m =   0; break;
             }
             this._protect.time = m;
             this._protect.amount = _ => Game.cookiesPsRaw * m*60 / 0.15;
