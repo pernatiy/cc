@@ -16,7 +16,8 @@ Bot that click cookies for you. Also can buy upgrades in a smart way.
 
 ## One-Shot Actions
 
-- `Z` : auto buy one item
+- `Q` : suggest best upgrade to buy
+- `Z` : auto buy one item (will not wait for enough cookies, despite the message)
 - `S` : show current status
 
 # Running
