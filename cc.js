@@ -26,9 +26,10 @@ ActionQueue.prototype = {
 
 // --- Calculator
 function Calculator () {
+    this.upgrades_enabled = true;
     this.pools = [
         function () {
-            return Game.UpgradesInStore.filter(u => u.pool == "" || u.pool == "cookie").map(u => {
+            return Game.UpgradesInStore.filter(u => this.upgrades_enabled && (u.pool == "" || u.pool == "cookie")).map(u => {
                 return {
                     name: u.name,
                     price: u.basePrice,
@@ -143,6 +144,10 @@ function Controller () {
             this._protect.time = m;
             this._protect.amount = _ => Game.cookiesPsRaw * m*60 / 0.15;
             this.say('Protect cookies worth ' + m + 'min of production');
+        } },
+        toggle_upgrades: { delay: 0, func: () => {
+            this._calc.upgrades_enabled = !this._calc.upgrades_enabled;
+            this.say('Upgrades are ' + (this._calc.upgrades_enabled ? 'enabled' : 'disabled') + ' for autobuy');
         } },
 
         autobuy: { delay:  250,
@@ -319,6 +324,7 @@ var view = {
         0x4d /* M */: 'main',
         0x53 /* S */: 'status',
         0x50 /* P */: 'protect',
+        0x55 /* U */: 'toggle_upgrades',
     },
 };
 document.addEventListener('keydown', function (e) { if (this.actions[e.keyCode]) this.ctrl.toggle_action(this.actions[e.keyCode]); }.bind(view));
