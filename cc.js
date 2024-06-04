@@ -32,6 +32,7 @@ function Calculator () {
                 return {
                     name: u.name,
                     price: u.basePrice,
+                    obj: u,
                     icon: u.icon,
                     add: _ => u.bought = 1,
                     sub: _ => u.bought = 0,
@@ -44,6 +45,7 @@ function Calculator () {
                 return {
                     name: o.name,
                     price: o.price,
+                    obj: o,
                     icon: [o.iconColumn, 0],
                     add: _ => ++o.amount,
                     sub: _ => --o.amount,
@@ -126,6 +128,10 @@ function Controller () {
 
         oneshot: { delay:    0, func: () => { this.autobuy(true); this._target = null; } },
         status:  { delay:    0, func: () => { this.status(); } },
+        query:   { delay:    0, func: () => {
+            var info = this._calc.find_best(this.get_click_rate());
+            this.notify('Purchase suggestion', info.name, info.icon);
+        } },
         protect: { delay:    0, func: () => {
             var m = this._protect.time;
             switch (m) {
@@ -303,6 +309,7 @@ Controller.prototype = {
 var view = {
     ctrl: new Controller(),
     actions: {
+        81 /* Q */: 'query',
         65 /* A */: 'autobuy',
         90 /* Z */: 'oneshot',
         72 /* H */: 'season',
