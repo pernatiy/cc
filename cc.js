@@ -309,16 +309,16 @@ Controller.prototype = {
 var view = {
     ctrl: new Controller(),
     actions: {
-        81 /* Q */: 'query',
-        65 /* A */: 'autobuy',
-        90 /* Z */: 'oneshot',
-        72 /* H */: 'season',
-        71 /* G */: 'gold',
-        78 /* N */: 'notify',
-        70 /* F */: 'frenzy',
-        77 /* M */: 'main',
-        83 /* S */: 'status',
-        80 /* P */: 'protect',
+        0x51 /* Q */: 'query',
+        0x41 /* A */: 'autobuy',
+        0x5a /* Z */: 'oneshot',
+        0x48 /* H */: 'season',
+        0x47 /* G */: 'gold',
+        0x4e /* N */: 'notify',
+        0x46 /* F */: 'frenzy',
+        0x4d /* M */: 'main',
+        0x53 /* S */: 'status',
+        0x50 /* P */: 'protect',
     },
 };
 document.addEventListener('keydown', function (e) { if (this.actions[e.keyCode]) this.ctrl.toggle_action(this.actions[e.keyCode]); }.bind(view));
