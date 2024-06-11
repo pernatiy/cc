@@ -26,9 +26,11 @@ ActionQueue.prototype = {
 
 // --- Calculator
 function Calculator () {
+    this.zero_max_wait = 60 * 3; // 3 minutes
+    this.threshold_fraction = 0.1;
     this.upgrades_enabled = true;
     this.pools = [
-        function () {
+        () => {
             return Game.UpgradesInStore.filter(u => this.upgrades_enabled && (u.pool == "" || u.pool == "cookie")).map(u => {
                 return {
                     name: u.name,
@@ -41,7 +43,7 @@ function Calculator () {
                 };
             });
         },
-        function () {
+        () => {
             return Game.ObjectsById.filter(o => o.locked == 0).map(o => {
                 return {
                     name: o.name,
@@ -94,24 +96,37 @@ Calculator.prototype = {
         Game.Win = g_win;
         Game.cookiesPsRawHighest = g_rawh;
 
-        // separate zero-production items from the rest
-        const [zeroes, accs] = pool.reduce((r, e) => {
-            if (e.metric === 0)
-                r[0].push(e);
-            else
-                r[1].push(e);
-            return r;
-        }, [[], []]);
+        const zero_max_price = Game.cookiesPsRaw * this.zero_max_wait;
 
-        // find the cheapest zero-production item and the most efficient one
-        const zero_candidate = zeroes.reduce((r, e) => r.item.price < e.item.price ? r : e, zeroes[0]);
-        const acc_candidate = accs.reduce((r, e) => r.metric < e.metric ? e : r, accs[0]);
+        // Step 1: Find the item with metric == 0 and lowest price
+        let candidate_zero = pool
+            .filter(e => e.metric === 0)
+            .reduce((l, e) => l === null || e.item.price < l.item.price ? e : l, null)
+            ?.item;
 
-        // prefer non-acceleration items only if they are cheaper than 3 minute of production or there are no accelerators
-        if (zero_candidate?.item.price < Game.cookiesPsRaw * 3*60 || acc_candidate === undefined)
-            return zero_candidate?.item;
-        else
-            return acc_candidate.item;
+        // Step 2: Find the item with highest metric
+        let candidate_acc = pool
+            .reduce((best, e) => best === null || e.metric > best.metric ? e : best, null)
+            ?.item;
+
+        const cheap_price_threshold = candidate_acc ? candidate_acc.price * this.threshold_fraction : Infinity;
+
+        // Step 3: Find the item with metric > 0 and lowest price but only if price is less than a fraction of the price of the best accelerator
+        let candidate_cheap = pool
+            .filter(e => e.metric > 0 && e.item.price < cheap_price_threshold)
+            .reduce((l, e) => l === null || e.item.price < l.item.price ? e : l, null)
+            ?.item;
+
+        // Step 4: Choose one of the three items based on the rules
+        if (candidate_zero && (candidate_zero.price < zero_max_price || candidate_acc === null)) {
+            return candidate_zero;
+        } else if (candidate_cheap) {
+            return candidate_cheap;
+        } else {
+            return candidate_acc;
+        }
+
+        return null;
     }
 };
 
@@ -131,7 +146,10 @@ function Controller () {
         status:  { delay:    0, func: () => { this.status(); } },
         query:   { delay:    0, func: () => {
             var info = this._calc.find_best(this.get_click_rate());
-            this.notify('Purchase suggestion', info.name, info.icon);
+            if (info)
+                this.notify('Purchase suggestion', info.name, info.icon);
+            else
+                this.notify('Purchase suggestion', 'Nothing to buy');
         } },
         protect: { delay:    0, func: () => {
             var m = this._protect.time;
