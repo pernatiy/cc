@@ -217,6 +217,10 @@ Controller.prototype = {
     guard: function () { },
 
     autobuy: function (force = false) {
+        // 0. avoid buying during click frenzy
+        if (!force && this.is_click_frenzy())
+            return;
+
         // 1. purchase target if it's affordable
         if (this._target && this._protect.amount() + this._target.price < Game.cookies)
             if (this.autobuy_exec())
@@ -232,10 +236,6 @@ Controller.prototype = {
 
         // 3. if not forced and already have a target - do nothing
         if (!force && this._target)
-            return;
-
-        // 4. also avoid buying during click frenzy
-        if (!force && this.is_click_frenzy())
             return;
 
         var info = this._target = this._calc.find_best(this.get_click_rate());
