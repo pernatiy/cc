@@ -260,7 +260,7 @@ Controller.prototype = {
         if (info.buy()) {
             ++this._total;
             success = true;
-            this.notify("autobuy", info.name, info.icon);
+            this.notify("Auto buy", info.name, info.icon);
         }
         Game.buyMode = buy_mode;
         this._target = null;
