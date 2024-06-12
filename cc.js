@@ -310,11 +310,11 @@ Controller.prototype = {
     },
 
     is_frenzy: function () {
-        return Object.values(Game.buffs).filter(b => b.type.name == "frenzy").length > 0;
+        return Object.values(Game.buffs).filter(b => b.type.name == 'frenzy' || b.type.name == 'dragon harvest').length > 0;
     },
 
     is_click_frenzy: function () {
-        return Object.values(Game.buffs).filter(b => b.type.name == "click frenzy").length > 0;
+        return Object.values(Game.buffs).filter(b => b.type.name == 'click frenzy' || b.type.name == 'dragonflight').length > 0;
     },
 
     get_guard_total: function () {
