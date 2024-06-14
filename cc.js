@@ -137,7 +137,10 @@ function Controller () {
     this._calc    = new Calculator();
     this._protect = { amount: _ => 0, time: 0 };
     this._target  = null;
+    this._targetT = null;
     this._guard   = { total: 0, cps: 0 };
+
+    this.force_check_timeout = 10 * 60 * 1000; // 10 minutes
 
     this.actions = {
         guard:   { delay: 1000, func: () => { this.guard(); } },
@@ -235,10 +238,11 @@ Controller.prototype = {
             force = true;
 
         // 3. if not forced and already have a target - do nothing
-        if (!force && this._target)
+        if (!force && this._target && this._targetT + this.force_check_timeout > Game.time)
             return;
 
         const info = this._target = this._calc.find_best(this.get_click_rate());
+        this._targetT = Game.time;
         if (!info) return; // nothing to buy((
 
         const cps = this._calc.ecps(this.get_click_rate());
