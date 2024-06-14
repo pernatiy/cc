@@ -135,10 +135,14 @@ function Controller () {
     this._notification = new Audio("//github.com/pernatiy/cc/raw/master/beep-30.mp3");
     this._queue   = new ActionQueue();
     this._calc    = new Calculator();
-    this._protect = { amount: _ => 0, time: 0 };
     this._target  = null;
     this._targetT = null;
     this._guard   = { total: 0, cps: 0 };
+    this._protect = {
+        value: 0,
+        if_value: 0,
+        amount: _ => Game.cookiesPsRaw * this._protect.value * 60 / 0.15,
+    };
 
     this.force_check_timeout = 10 * 60 * 1000; // 10 minutes
 
@@ -155,15 +159,16 @@ function Controller () {
                 this.notify('Purchase suggestion', 'Nothing to buy');
         } },
         protect: { delay:    0, func: () => {
-            let m = this._protect.time;
+            let m = this._protect.if_value;
             switch (m) {
                 case   0: m =  15; break;
                 case  15: m =  30; break;
                 case  30: m = 105; break;
                 case 105: m =   0; break;
             }
-            this._protect.time = m;
-            this._protect.amount = _ => Game.cookiesPsRaw * m*60 / 0.15;
+            this._protect.if_value = m;
+            // delay actual change to allow user to put correct value that requires undergo via zero
+            this._queue.enqueue('change_protect', 1000, () => { this._protect.value = m; });
             this.say('Protect cookies worth ' + m + 'min of production');
         } },
         toggle_upgrades: { delay: 0, func: () => {
@@ -287,7 +292,7 @@ Controller.prototype = {
             if (this.actions[i].delay && i != 'guard')
                 act.push(i + ': ' + b2s(this.actions[i].id));
         let msg = '<p>' + act.join(', ') + '</p>';
-        msg += '<p>protection: '+this._protect.time+' min ('+Beautify(this._protect.amount())+')</p>';
+        msg += '<p>protection: '+this._protect.value+' min ('+Beautify(this._protect.amount())+')</p>';
         if (this._target)
             msg += '<p>waiting ' + Beautify(this.get_wait_time()) + 's for "' + this._target.name + '"</p>';
         this.say_news(msg);
