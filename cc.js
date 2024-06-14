@@ -52,7 +52,7 @@ function Calculator () {
                     icon: [o.iconColumn, 0],
                     add: _ => ++o.amount,
                     sub: _ => --o.amount,
-                    buy: _ => { var c = o.amount; o.buy(1); return o.amount > c; },
+                    buy: _ => { const c = o.amount; o.buy(1); return o.amount > c; },
                 };
             });
         },
@@ -70,12 +70,12 @@ Calculator.prototype = {
     },
 
     calc_bonus: function (generator, click_rate) {
-        var cur_cps = this.ecps(click_rate);
+        const cur_cps = this.ecps(click_rate);
 
-        var res = generator().map(e => {
+        const res = generator().map(e => {
             e.add();
             Game.CalculateGains();
-            var new_cps = this.ecps(click_rate);
+            const new_cps = this.ecps(click_rate);
             e.sub();
             return { item: e, metric: this.metric(cur_cps, new_cps, e.price) };
         });
@@ -89,8 +89,8 @@ Calculator.prototype = {
         const g_rawh = Game.cookiesPsRawHighest;
         Game.Win = function () { };
 
-        var pool = [];
-        for (var p of this.pools)
+        let pool = [];
+        for (let p of this.pools)
             pool = pool.concat(this.calc_bonus(p, click_rate || 0));
 
         Game.Win = g_win;
@@ -99,20 +99,20 @@ Calculator.prototype = {
         const zero_max_price = Game.cookiesPsRaw * this.zero_max_wait;
 
         // Step 1: Find the item with metric == 0 and lowest price
-        let candidate_zero = pool
+        const candidate_zero = pool
             .filter(e => e.metric === 0)
             .reduce((l, e) => l === null || e.item.price < l.item.price ? e : l, null)
             ?.item;
 
         // Step 2: Find the item with highest metric
-        let candidate_acc = pool
+        const candidate_acc = pool
             .reduce((best, e) => best === null || e.metric > best.metric ? e : best, null)
             ?.item;
 
         const cheap_price_threshold = candidate_acc ? candidate_acc.price * this.threshold_fraction : Infinity;
 
         // Step 3: Find the item with metric > 0 and lowest price but only if price is less than a fraction of the price of the best accelerator
-        let candidate_cheap = pool
+        const candidate_cheap = pool
             .filter(e => e.metric > 0 && e.item.price < cheap_price_threshold)
             .reduce((l, e) => l === null || e.item.price < l.item.price ? e : l, null)
             ?.item;
@@ -145,14 +145,14 @@ function Controller () {
         oneshot: { delay:    0, func: () => { this.autobuy(true); this._target = null; } },
         status:  { delay:    0, func: () => { this.status(); } },
         query:   { delay:    0, func: () => {
-            var info = this._calc.find_best(this.get_click_rate());
+            const info = this._calc.find_best(this.get_click_rate());
             if (info)
                 this.notify('Purchase suggestion', info.name, info.icon);
             else
                 this.notify('Purchase suggestion', 'Nothing to buy');
         } },
         protect: { delay:    0, func: () => {
-            var m = this._protect.time;
+            let m = this._protect.time;
             switch (m) {
                 case   0: m =  15; break;
                 case  15: m =  30; break;
@@ -227,8 +227,8 @@ Controller.prototype = {
                 return;
 
         // 2. force check if number of buildings or cps was changed externally
-        var t_ = this._guard.total;
-        var c_ = this._guard.cps;
+        const t_ = this._guard.total;
+        const c_ = this._guard.cps;
         this._guard.total = this.get_guard_total();
         this._guard.cps = Game.cookiesPs;
         if (t_ != this._guard.total || c_ != this._guard.cps)
@@ -238,11 +238,11 @@ Controller.prototype = {
         if (!force && this._target)
             return;
 
-        var info = this._target = this._calc.find_best(this.get_click_rate());
+        const info = this._target = this._calc.find_best(this.get_click_rate());
         if (!info) return; // nothing to buy((
 
-        var cps = this._calc.ecps(this.get_click_rate());
-        var cookie_delta = this._protect.amount() + info.price - Game.cookies;
+        const cps = this._calc.ecps(this.get_click_rate());
+        const cookie_delta = this._protect.amount() + info.price - Game.cookies;
         console.log("For ecps = " + Beautify(cps, 1) + " best candidate is " + info.name + " =>", info);
 
         if (cookie_delta > 0) {
@@ -253,9 +253,9 @@ Controller.prototype = {
     },
 
     autobuy_exec: function () {
-        var success = false;
-        var info = this._target;
-        var buy_mode = Game.buyMode;
+        let success = false;
+        const info = this._target;
+        const buy_mode = Game.buyMode;
         Game.buyMode = 1;
         if (info.buy()) {
             ++this._total;
@@ -268,7 +268,7 @@ Controller.prototype = {
     },
 
     gold_cookie_popper: function () {
-        var gcs = Game.shimmers.filter(s => s.type == 'golden' && s.wrath == 0);
+        const gcs = Game.shimmers.filter(s => s.type == 'golden' && s.wrath == 0);
         if (gcs.length > 0)
             gcs[0].pop();
 
@@ -277,20 +277,20 @@ Controller.prototype = {
     },
 
     status: function () {
-        var act = [];
-        var b2s = function (b) { return b ? 'on'.fontcolor('green') : 'off'.fontcolor('red'); };
-        for (var i in this.actions)
+        const act = [];
+        const b2s = function (b) { return b ? 'on'.fontcolor('green') : 'off'.fontcolor('red'); };
+        for (let i in this.actions)
             if (this.actions[i].delay && i != 'guard')
                 act.push(i + ': ' + b2s(this.actions[i].id));
-        var msg = '<p>' + act.join(', ') + '</p>';
-        msg += '<p>protection: '+this._protect.time+'min ('+Beautify(this._protect.amount())+')</p>';
+        let msg = '<p>' + act.join(', ') + '</p>';
+        msg += '<p>protection: '+this._protect.time+' min ('+Beautify(this._protect.amount())+')</p>';
         if (this._target)
             msg += '<p>waiting ' + Beautify(this.get_wait_time()) + 's for "' + this._target.name + '"</p>';
         this.say_news(msg);
     },
 
     toggle_action: function (name) {
-        var action = this.actions[name];
+        const action = this.actions[name];
 
         if (!action)
             return;
