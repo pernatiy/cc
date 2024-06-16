@@ -1,3 +1,15 @@
+// --- Logger
+const logger = {
+    _log: (f, ...args) => {
+        const now = (new Date()).toISOString();
+        f(`[${now}]`, ...args);
+    },
+
+    log: (...args) => logger._log(console.log, ...args),
+    warn: (...args) => logger._log(console.warn, ...args),
+    error: (...args) => logger._log(console.error, ...args),
+};
+
 // --- Action Queue
 function ActionQueue () {
     this._queue = {};
@@ -169,11 +181,11 @@ function Controller () {
             this._protect.if_value = m;
             // delay actual change to allow user to put correct value that requires undergo via zero
             this._queue.enqueue('change_protect', 1000, () => { this._protect.value = m; });
-            this.say('Protect cookies worth ' + m + 'min of production');
+            this.say(`Protect cookies worth ${m} min of production`);
         } },
         toggle_upgrades: { delay: 0, func: () => {
             this._calc.upgrades_enabled = !this._calc.upgrades_enabled;
-            this.say('Upgrades are ' + (this._calc.upgrades_enabled ? 'enabled' : 'disabled') + ' for autobuy');
+            this.say(`Upgrades are ${this._calc.upgrades_enabled ? 'enabled' : 'disabled'} for autobuy`);
         } },
 
         autobuy: { delay:  250,
@@ -205,20 +217,20 @@ function Controller () {
 
 Controller.prototype = {
     say: function (msg) {
-        console.log(msg);
+        logger.log(msg);
         Game.Popup(msg);
         this._queue.enqueue('clear_stack', 5000, () => { Game.textParticlesY = 60; });
     },
 
     say_news: function (msg) {
-        console.log(msg);
+        logger.log(msg);
         Game.Ticker = msg;
         Game.TickerAge = 10 * Game.fps;
         Game.TickerDraw();
     },
 
     notify: function (title, msg, icon = [10, 0]) {
-        console.log(title + ": " + msg);
+        logger.log(`${title}: ${msg}`);
         Game.Notify(title, msg, icon, 20, 1);
     },
 
@@ -252,10 +264,10 @@ Controller.prototype = {
 
         const cps = this._calc.ecps(this.get_click_rate());
         const cookie_delta = this._protect.amount() + info.price - Game.cookies;
-        console.log("For ecps = " + Beautify(cps, 1) + " best candidate is " + info.name + " =>", info);
+        logger.log(`For ecps = ${Beautify(cps, 1)} best candidate is`, info);
 
         if (cookie_delta > 0) {
-            this.say('Waiting ' + Beautify(cookie_delta/cps, 1) + 's for "' + info.name + '"');
+            this.say(`Waiting ${Beautify(cookie_delta/cps, 1)} sec for "${info.name}"`);
         } else {
             this.autobuy_exec();
         }
@@ -306,7 +318,7 @@ Controller.prototype = {
 
         if (action.delay) {
             action.id = action.id ? clearInterval(action.id) : setInterval(action.func, action.delay);
-            this.say('Action "' + name + '" turned ' + (action.id ? 'on' : 'off'));
+            this.say(`Action "${name}" turned ${action.id ? 'on' : 'off'}`);
             if (action.on_trigger)
                 action.on_trigger(!!action.id);
         } else {
