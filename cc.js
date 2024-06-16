@@ -81,29 +81,31 @@ Calculator.prototype = {
         return ((new_cps - adj_cur_cps)/price)**2 * (1 - Math.exp(-adj_cur_cps/price));
     },
 
-    calc_bonus: function (generator, click_rate) {
+    calc_bonus: function (list, click_rate, price_adj) {
         const cur_cps = this.ecps(click_rate);
 
-        const res = generator().map(e => {
+        const res = list.map(e => {
             e.add();
             Game.CalculateGains();
             const new_cps = this.ecps(click_rate);
             e.sub();
-            return { item: e, metric: this.metric(cur_cps, new_cps, e.price) };
+            return { item: e, metric: this.metric(cur_cps, new_cps, Math.max(1, e.price + price_adj)) };
         });
         Game.CalculateGains();
 
         return res;
     },
 
-    find_best: function (click_rate) {
+    find_best: function (click_rate = 0, price_adj = 0) {
         const g_win = Game.Win;
         const g_rawh = Game.cookiesPsRawHighest;
         Game.Win = function () { };
 
         let pool = [];
         for (let p of this.pools)
-            pool = pool.concat(this.calc_bonus(p, click_rate || 0));
+            pool = pool.concat(p());
+
+        let options = this.calc_bonus(pool, click_rate, price_adj);
 
         Game.Win = g_win;
         Game.cookiesPsRawHighest = g_rawh;
@@ -111,20 +113,20 @@ Calculator.prototype = {
         const zero_max_price = Game.cookiesPsRaw * this.zero_max_wait;
 
         // Step 1: Find the item with metric == 0 and lowest price
-        const candidate_zero = pool
+        const candidate_zero = options
             .filter(e => e.metric === 0)
             .reduce((l, e) => l === null || e.item.price < l.item.price ? e : l, null)
             ?.item;
 
         // Step 2: Find the item with highest metric
-        const candidate_acc = pool
+        const candidate_acc = options
             .reduce((best, e) => best === null || e.metric > best.metric ? e : best, null)
             ?.item;
 
         const cheap_price_threshold = candidate_acc ? candidate_acc.price * this.threshold_fraction : Infinity;
 
         // Step 3: Find the item with metric > 0 and lowest price but only if price is less than a fraction of the price of the best accelerator
-        const candidate_cheap = pool
+        const candidate_cheap = options
             .filter(e => e.metric > 0 && e.item.price < cheap_price_threshold)
             .reduce((l, e) => l === null || e.item.price < l.item.price ? e : l, null)
             ?.item;
@@ -164,7 +166,7 @@ function Controller () {
         oneshot: { delay:    0, func: () => { this.autobuy(true); this._target = null; } },
         status:  { delay:    0, func: () => { this.status(); } },
         query:   { delay:    0, func: () => {
-            const info = this._calc.find_best(this.get_click_rate());
+            const info = this._calc.find_best(this.get_click_rate(), this._protect.amount() - Game.cookies);
             if (info)
                 this.notify('Purchase suggestion', info.name, info.icon);
             else
@@ -258,7 +260,7 @@ Controller.prototype = {
         if (!force && this._target && this._targetT + this.force_check_timeout > Game.time)
             return;
 
-        const info = this._target = this._calc.find_best(this.get_click_rate());
+        const info = this._target = this._calc.find_best(this.get_click_rate(), this._protect.amount() - Game.cookies);
         this._targetT = Game.time;
         if (!info) return; // nothing to buy((
 
