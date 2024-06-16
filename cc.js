@@ -112,6 +112,11 @@ Calculator.prototype = {
 
         const zero_max_price = Game.cookiesPsRaw * this.zero_max_wait;
 
+        if (options.length !== 0) {
+            options.sort((a, b) => b.metric - a.metric);
+            logger.log('options are', options);
+        }
+
         // Step 1: Find the item with metric == 0 and lowest price
         const candidate_zero = options
             .filter(e => e.metric === 0)
