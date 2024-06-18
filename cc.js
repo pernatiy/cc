@@ -39,7 +39,7 @@ ActionQueue.prototype = {
 // --- Calculator
 function Calculator () {
     this.zero_max_wait = 60 * 3; // 3 minutes
-    this.threshold_fraction = 0.1;
+    this.threshold_fraction = 1/1000;
     this.upgrades_enabled = true;
     this.pools = [
         () => {
@@ -130,10 +130,10 @@ Calculator.prototype = {
 
         const cheap_price_threshold = candidate_acc ? candidate_acc.price * this.threshold_fraction : Infinity;
 
-        // Step 3: Find the item with metric > 0 and lowest price but only if price is less than a fraction of the price of the best accelerator
+        // Step 3: Find the item with a highest non-zero metric and price lower than threshold
         const candidate_cheap = options
             .filter(e => e.metric > 0 && e.item.price < cheap_price_threshold)
-            .reduce((l, e) => l === null || e.item.price < l.item.price ? e : l, null)
+            .reduce((best, e) => best === null || e.metric > best.metric ? e : best, null)
             ?.item;
 
         // Step 4: Choose one of the three items based on the rules
