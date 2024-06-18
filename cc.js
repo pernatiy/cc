@@ -156,7 +156,7 @@ function Controller () {
     this._calc    = new Calculator();
     this._target  = null;
     this._targetT = null;
-    this._guard   = { total: 0, cps: 0 };
+    this._env     = { control_sum: 0, cps: 0 };
     this._protect = {
         value: 0,
         if_value: 0,
@@ -166,8 +166,6 @@ function Controller () {
     this.force_check_timeout = 10 * 60 * 1000; // 10 minutes
 
     this.actions = {
-        guard:   { delay: 1000, func: () => { this.guard(); } },
-
         oneshot: { delay:    0, func: () => { this.autobuy(true); this._target = null; } },
         status:  { delay:    0, func: () => { this.status(); } },
         query:   { delay:    0, func: () => {
@@ -241,8 +239,6 @@ Controller.prototype = {
         Game.Notify(title, msg, icon, 20, 1);
     },
 
-    guard: function () { },
-
     autobuy: function (force = false) {
         // 0. avoid buying during click frenzy
         if (!force && this.is_click_frenzy())
@@ -254,11 +250,7 @@ Controller.prototype = {
                 return;
 
         // 2. force check if number of buildings or cps was changed externally
-        const t_ = this._guard.total;
-        const c_ = this._guard.cps;
-        this._guard.total = this.get_guard_total();
-        this._guard.cps = Game.cookiesPs;
-        if (t_ != this._guard.total || c_ != this._guard.cps)
+        if (this.environment_changed())
             force = true;
 
         // 3. if not forced and already have a target - do nothing
@@ -286,7 +278,6 @@ Controller.prototype = {
         const buy_mode = Game.buyMode;
         Game.buyMode = 1;
         if (info.buy()) {
-            ++this._total;
             success = true;
             this.notify("Auto Buy", info.name, info.icon);
         }
@@ -308,7 +299,7 @@ Controller.prototype = {
         const act = [];
         const b2s = function (b) { return b ? 'on'.fontcolor('green') : 'off'.fontcolor('red'); };
         for (let i in this.actions)
-            if (this.actions[i].delay && i != 'guard')
+            if (this.actions[i].delay)
                 act.push(i + ': ' + b2s(this.actions[i].id));
         let msg = '<p>' + act.join(', ') + '</p>';
         msg += '<p>protection: '+this._protect.value+' min ('+Beautify(this._protect.amount())+')</p>';
@@ -333,6 +324,18 @@ Controller.prototype = {
         }
     },
 
+    environment_changed: function () {
+        const t = this._env.control_sum;
+        const c = this._env.cps;
+
+        this._env.control_sum = 10 * !!this.actions.main.id +
+            Game.BuildingsOwned + Game.UpgradesOwned;
+
+        this._env.cps = Game.cookiesPsRaw;
+
+        return t != this._env.control_sum || c != this._env.cps;
+    },
+
     get_click_rate: function () {
         return this.actions.main.id ? 1000 / this.actions.main.delay : 0;
     },
@@ -343,11 +346,6 @@ Controller.prototype = {
 
     is_click_frenzy: function () {
         return Object.values(Game.buffs).filter(b => b.type.name == 'click frenzy' || b.type.name == 'dragonflight').length > 0;
-    },
-
-    get_guard_total: function () {
-        return 10 * !!this.actions.main.id +
-            Game.BuildingsOwned + Game.UpgradesOwned;
     },
 
     get_wait_time: function () {
