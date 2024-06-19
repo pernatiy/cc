@@ -155,15 +155,12 @@ function Controller () {
     this._queue   = new ActionQueue();
     this._calc    = new Calculator();
     this._target  = null;
-    this._targetT = null;
     this._env     = { control_sum: 0, cps: 0 };
     this._protect = {
         value: 0,
         if_value: 0,
         amount: _ => Game.cookiesPsRaw * this._protect.value * 60 / 0.15,
     };
-
-    this.force_check_timeout = 10 * 60 * 1000; // 10 minutes
 
     this.actions = {
         oneshot: { delay:    0, func: () => { this.autobuy(true); this._target = null; } },
@@ -254,11 +251,10 @@ Controller.prototype = {
             force = true;
 
         // 3. if not forced and already have a target - do nothing
-        if (!force && this._target && this._targetT + this.force_check_timeout > Game.time)
+        if (!force && this._target)
             return;
 
         const info = this._target = this._calc.find_best(this.get_click_rate(), this._protect.amount() - Game.cookies);
-        this._targetT = Game.time;
         if (!info) return; // nothing to buy((
 
         const cps = this._calc.ecps(this.get_click_rate());
