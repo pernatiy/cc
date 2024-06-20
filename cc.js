@@ -162,24 +162,33 @@ function Controller () {
     this._queue   = new ActionQueue();
     this._calc    = new Calculator();
     this._target  = null;
-    this._env     = { control_sum: 0, cps: 0 };
+    this._env     = { control_sum: 0 };
     this._protect = {
         value: 0,
         if_value: 0,
         amount: _ => Game.cookiesPsRaw * this._protect.value * 60 / 0.15,
     };
 
+    this.force_check_timeout = 10 * 60 * 1000; // 10 minutes
+
     this.actions = {
-        oneshot: { delay:    0, func: () => { this.autobuy(true); this._target = null; } },
-        status:  { delay:    0, func: () => { this.status(); } },
-        query:   { delay:    0, func: () => {
+        status:  { delay: 0, func: () => { this.status(); } },
+        oneshot: { delay: 0, func: () => {
+            if (this._target) {
+                this.say(this.get_wait_time_msg(true));
+            } else {
+                this.autobuy(true);
+                this._target = null;
+            }
+        } },
+        query:   { delay: 0, func: () => {
             const info = this._calc.find_best(this.get_click_rate(), this._protect.amount() - Game.cookies);
             if (info)
                 this.notify('Purchase suggestion', info.name, info.icon);
             else
                 this.notify('Purchase suggestion', 'Nothing to buy');
         } },
-        protect: { delay:    0, func: () => {
+        protect: { delay: 0, func: () => {
             let m = this._protect.if_value;
             switch (m) {
                 case   0: m =  15; break;
@@ -197,13 +206,13 @@ function Controller () {
             this.say(`Upgrades are ${this._calc.upgrades_enabled ? 'enabled' : 'disabled'} for autobuy`);
         } },
 
-        autobuy: { delay:  250,
+        autobuy: { delay: 250,
             func: () => { this.autobuy(); },
             on_trigger: (on) => { if (!on) this._target = null; }
         },
 
-        main:    { delay:   50, func: Game.ClickCookie },
-        frenzy:  { delay:   50, func: () => {
+        main:    { delay: 50, func: Game.ClickCookie },
+        frenzy:  { delay: 50, func: () => {
             if (this.is_click_frenzy())
                 Game.ClickCookie();
         } },
@@ -244,47 +253,67 @@ Controller.prototype = {
     },
 
     autobuy: function (force = false) {
-        // 0. avoid buying during click frenzy
+        const free_cookies = Game.cookies - this._protect.amount();
+        var price_adj = -free_cookies; // lower price by available to spend
+
+        // 1. avoid buying during click frenzy
         if (!force && this.is_click_frenzy())
             return;
 
-        // 1. purchase target if it's affordable
-        if (this._target && this._protect.amount() + this._target.price < Game.cookies)
+        // 2. purchase target if it's affordable
+        if (this._target && this._target.item.price <= free_cookies)
             if (this.autobuy_exec())
                 return;
 
-        // 2. force check if number of buildings or cps was changed externally
-        if (this.environment_changed())
+        // 3. force check if number of buildings or autoclick was changed
+        const t = this._env.control_sum;
+        this._env.control_sum = 77 * !!this.actions.main.id +
+            Game.BuildingsOwned + Game.UpgradesOwned;
+        if (t != this._env.control_sum)
             force = true;
 
-        // 3. if not forced and already have a target - do nothing
+        // 4. force check once in a while
+        if (this._target && Game.time - this._target.time > this.force_check_timeout)
+            force = true;
+
+        // 5. if not forced and already have a target - do nothing
         if (!force && this._target)
             return;
 
-        const info = this._target = this._calc.find_best(this.get_click_rate(), this._protect.amount() - Game.cookies);
+        // 6. if there was a target - use the same price adjustment
+        if (this._target)
+            price_adj = this._target.padj;
+
+        const info = this._calc.find_best(this.get_click_rate(), price_adj);
         if (!info) return; // nothing to buy((
 
         const cps = this._calc.ecps(this.get_click_rate());
-        const cookie_delta = this._protect.amount() + info.price - Game.cookies;
-        logger.log(`For ecps = ${Beautify(cps, 1)} best candidate is`, info);
+        logger.log(`For (bank, cps) = (${Beautify(free_cookies, 1)}, ${Beautify(cps, 1)}) best candidate is`, info);
 
-        if (cookie_delta > 0) {
-            this.say(`Waiting ${Beautify(cookie_delta/cps, 1)} sec for "${info.name}"`);
+        this._target = {
+            item: info,
+            time: Game.time,
+            padj: price_adj,
+        };
+
+        if (info.price > free_cookies) {
+            this.say(this.get_wait_time_msg(true));
         } else {
             this.autobuy_exec();
         }
     },
 
     autobuy_exec: function () {
-        let success = false;
-        const info = this._target;
+        const info = this._target.item;
+
         const buy_mode = Game.buyMode;
         Game.buyMode = 1;
-        if (info.buy()) {
-            success = true;
-            this.notify("Auto Buy", info.name, info.icon);
-        }
+        let success = info.buy();
         Game.buyMode = buy_mode;
+
+        if (success)
+            this.notify("Auto Buy", info.name, info.icon);
+
         this._target = null;
         return success;
     },
@@ -307,7 +336,7 @@ Controller.prototype = {
         let msg = '<p>' + act.join(', ') + '</p>';
         msg += '<p>protection: '+this._protect.value+' min ('+Beautify(this._protect.amount())+')</p>';
         if (this._target)
-            msg += '<p>waiting ' + Beautify(this.get_wait_time()) + 's for "' + this._target.name + '"</p>';
+            msg += `<p>${this.get_wait_time_msg()}</p>`;
         this.say_news(msg);
     },
 
@@ -335,18 +364,6 @@ Controller.prototype = {
         this._queue.clear();
     },
 
-    environment_changed: function () {
-        const t = this._env.control_sum;
-        const c = this._env.cps;
-
-        this._env.control_sum = 10 * !!this.actions.main.id +
-            Game.BuildingsOwned + Game.UpgradesOwned;
-
-        this._env.cps = Game.cookiesPsRaw;
-
-        return t != this._env.control_sum || c != this._env.cps;
-    },
-
     get_click_rate: function () {
         return this.actions.main.id ? 1000 / this.actions.main.delay : 0;
     },
@@ -359,11 +376,10 @@ Controller.prototype = {
         return Object.values(Game.buffs).filter(b => b.type.name == 'click frenzy' || b.type.name == 'dragonflight').length > 0;
     },
 
-    get_wait_time: function () {
-        return this._target
-            ? (this._protect.amount() + this._target.price - Game.cookies) / this._calc.ecps(this.get_click_rate())
-            : 0;
-    }
+    get_wait_time_msg: function (cap = false) {
+        const t = (this._protect.amount() + this._target.item.price - Game.cookies) / this._calc.ecps(this.get_click_rate());
+        return `${cap ? 'W' : 'w'}aiting ${Beautify(t, 1)} sec for "${this._target.item.name}"`;
+    },
 };
 
 const view = {
