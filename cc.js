@@ -1,3 +1,5 @@
+(function() {
+
 // --- Logger
 const logger = {
     _log: (f, ...args) => {
@@ -34,6 +36,11 @@ ActionQueue.prototype = {
     is_enqueued: function (name) {
         return this._queue[name] ? true : false
     },
+
+    clear: function () {
+        for (let i in this._queue)
+            this.dequeue(i);
+    }
 }
 
 // --- Calculator
@@ -320,6 +327,14 @@ Controller.prototype = {
         }
     },
 
+    shutdown: function () {
+        for (let i in this.actions)
+            if (this.actions[i].id)
+                clearInterval(this.actions[i].id);
+
+        this._queue.clear();
+    },
+
     environment_changed: function () {
         const t = this._env.control_sum;
         const c = this._env.cps;
@@ -351,7 +366,7 @@ Controller.prototype = {
     }
 };
 
-var view = {
+const view = {
     ctrl: new Controller(),
     actions: {
         0x51 /* Q */: 'query',
@@ -367,4 +382,16 @@ var view = {
         0x55 /* U */: 'toggle_upgrades',
     },
 };
-document.addEventListener('keydown', function (e) { if (this.actions[e.keyCode]) this.ctrl.toggle_action(this.actions[e.keyCode]); }.bind(view));
+
+if (typeof window.view === 'undefined') {
+    document.addEventListener('keydown', function (e) {
+        if (view.actions[e.keyCode])
+            view.ctrl.toggle_action(view.actions[e.keyCode]);
+    });
+    window.view = view;
+} else {
+    window.view.ctrl.shutdown();
+    window.view.ctrl = view.ctrl;
+}
+
+})();
